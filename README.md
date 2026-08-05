@@ -143,7 +143,7 @@ this list once the Dataverse/Fabric source is wired up.
 | 9 | Ribbon C — two field **names** | `lastExecutiveEngagement`, `lastServiceReviewWithSponsor` — names **not confirmed**, rendered with a visible "Field name TBC" chip | `services/types.ts`, `components/focus/AccountMonitoringRibbon.tsx` |
 | 10 | Recent Meetings | 3 seeded meeting logs | `MOCK_MEETINGS` |
 | 11 | Meeting log writes | Saved in memory only; lost on reload | `services/mock/mockAccountService.ts` |
-| 12 | Copilot widget | Empty container — no bot embedded | `components/shell/CopilotWidget.tsx` |
+| 12 | Copilot widget | Seeded conversation, suggested prompts and a single canned reply — no bot connected | `components/shell/copilotPlaceholder.ts` |
 | 13 | Current user identity | Stands in for the Entra ID identity Power Pages supplies | `MOCK_CURRENT_USER` |
 
 Mock dates are generated **relative to today**, not hardcoded, so the prototype
@@ -177,6 +177,49 @@ colour token, so status colour and glow colour can never disagree. The one place
 glow is deliberately *static* is the Account Monitoring overdue flag: an overdue
 field can stay overdue for months, and a looping animation there would be a
 permanent distraction.
+
+### Copilot Studio widget
+
+Originally scoped as "container only". A working placeholder conversation was
+added later at the client's request so the interaction can be demonstrated:
+a seeded exchange, suggested prompt chips, a text composer, an animated typing
+indicator, and message bubbles that spring in from their own side of the
+conversation.
+
+**It is not an assistant.** Every message gets the same canned reply, which
+quotes the question back and then says plainly that it isn't connected. That was
+deliberate — a plausible-looking fake answer would get screenshotted and
+mistaken for a working bot. The panel header carries a permanent
+"Placeholder — not connected to Copilot Studio" line that can't be scrolled away.
+
+**To embed the real bot:** replace the `<MessageList>`/`<Composer>` block in
+`CopilotWidget.tsx` with the Copilot Studio `<iframe>` and delete
+`copilotPlaceholder.ts`. The launcher, panel, open/close animation, focus
+handling and layout need no changes.
+
+**Launcher colour and contrast.** The launcher uses `--hpe-color-decorative-brand`
+(#01a982, the token HPE labels "HPE Brand") with an explicitly white icon. The
+default `icon-onPrimaryStrong` token resolves to near-black (#292d3a) in light
+mode, which is why white is set directly rather than via the token.
+
+Measured against white:
+
+| Green | Hex | Contrast with white | Verdict |
+| --- | --- | --- | --- |
+| green-500 "Landmark Primary" | `#00e0af` | 1.71:1 | Fails — too light for a white icon |
+| **green-600 "HPE Brand"** | `#01a982` | **3.00:1** | Passes WCAG 1.4.11 (3:1) for icons — used on the launcher |
+| green-700 | `#068667` | 4.55:1 | Passes 1.4.3 (4.5:1) for text — used on the panel header and user bubbles |
+
+The limiest green was ruled out on contrast. The panel header and user message
+bubbles use green-700 rather than the brand green because they carry 14px body
+text, which needs 4.5:1 — the launcher keeps the brighter brand green because it
+carries an icon, not prose.
+
+**Launcher motion.** The `<button>` element itself is a fixed, transparent hit
+target and is never transformed; all idle motion lives on an inner disc. An
+animated button would mean the click target drifts continuously, which is
+materially harder to hit for anyone with a motor impairment. The float also
+pauses on hover so the disc settles under the cursor.
 
 ### Date picker
 
