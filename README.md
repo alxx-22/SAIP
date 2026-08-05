@@ -238,18 +238,26 @@ lower-case and set in the accent green**, so the mark carries the brand colour
 without needing a separate device.
 
 It runs to about **0.85s** on screen. This sits in front of the app on every
-fresh tab, so it should register and get out of the way. Letters are eased
-rather than sprung: a spring overshoots, and four letters settling at visibly
+load, so it should register and get out of the way. Letters are eased rather
+than sprung: a spring overshoots, and four letters settling at visibly
 different moments reads as wobble at this size.
 
-It plays **once per browser tab** (`sessionStorage`), not on every route change,
-which would be exhausting for someone in this all day. Under reduced motion it
-never mounts — there is nothing to it but motion.
+It plays on **every page load, including refreshes**. It does not replay on
+client-side navigation — the component mounts once per document, so moving
+between routes leaves it alone. Under reduced motion it never mounts; there is
+nothing to it but motion.
+
+There is no persisted "already seen" flag, which is deliberate: the previous
+version kept one in `sessionStorage`, and `sessionStorage` *throws* rather than
+returning null in a sandboxed iframe, in Safari with strict tracking protection,
+and in Firefox with third-party storage blocked. That exception escaped during
+render and took the whole app down to a blank page over a cosmetic flag. Playing
+every time removes the need for storage entirely.
 
 Components whose own entrance would otherwise play *underneath* the overlay
-schedule around it via `introWillPlay()` / `INTRO_DURATION_S` — that's why the
-"Log a meeting" button waits before extending. Without it the plus rolled out
-behind the intro and was never actually seen.
+schedule around it via `introRemainingMs()` — that's why the "Log a meeting"
+button waits before extending. It returns 0 once the intro is done, so a button
+mounted on a later page doesn't wait for an overlay that isn't there.
 
 ### Glow
 

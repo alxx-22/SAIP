@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { duration, easing, glow, spring } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
-import { INTRO_DURATION_S, introWillPlay } from '@/components/shell/AppIntro';
+import { introRemainingMs } from '@/components/shell/AppIntro';
 
 /**
  * "Log a meeting" — the app's primary action.
@@ -36,13 +36,14 @@ export function LogMeetingButton({
       return;
     }
     /*
-      Wait out the opening animation before extending. The button mounts
-      underneath the intro overlay, so without this the plus rolls out while
-      the overlay is still covering the page and the animation is never
-      actually seen.
+      Wait out whatever is left of the opening animation before extending. The
+      button mounts underneath the intro overlay, so without this the plus
+      rolls out while the overlay is still covering the page and the animation
+      is never actually seen. `introRemainingMs()` returns 0 once the intro has
+      finished, so a button mounted on a later page doesn't wait for nothing.
     */
-    const wait = (introWillPlay() ? INTRO_DURATION_S + 0.25 : 0) + delay;
-    const id = window.setTimeout(() => setExtended(true), wait * 1000);
+    const wait = introRemainingMs() + (250 + delay * 1000);
+    const id = window.setTimeout(() => setExtended(true), wait);
     return () => window.clearTimeout(id);
   }, [reduced, delay]);
 

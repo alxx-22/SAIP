@@ -10,13 +10,13 @@ import { useAppMotion } from '@/motion/useAppMotion';
  * The "i" is deliberately lower-case and set in the HPE accent green, so the
  * mark carries the brand colour rather than needing a separate device.
  *
- * Plays once per browser tab, not per route change — a rep navigating around
- * all day should see this once, not on every trip Home. Under reduced motion it
- * never mounts: there is nothing here but motion, so the correct fallback is to
- * go straight to the app.
+ * Plays on every page load, including refreshes. It does NOT replay on
+ * client-side navigation — this component mounts once per document, so moving
+ * between routes leaves it alone.
+ *
+ * Under reduced motion it never mounts: there is nothing here but motion, so
+ * the correct fallback is to go straight to the app.
  */
-const SEEN_KEY = 'saip.intro.seen';
-
 const LETTERS = [
   { char: 'S', accent: false },
   { char: 'A', accent: false },
@@ -42,61 +42,39 @@ export const INTRO_DURATION_S =
   (LETTERS.length - 1) * LETTER_STEP + LETTER_DURATION + HOLD_S;
 
 /**
- * Session storage access, guarded.
+ * When this module was first evaluated — i.e. when the document loaded.
  *
- * `sessionStorage` is not always readable. A sandboxed iframe without
- * `allow-same-origin`, Safari's strict tracking protection, and Firefox with
- * third-party storage blocked all THROW a SecurityError on access rather than
- * returning null. Unguarded, that exception escapes during render and takes the
- * whole app down to a blank page — which is a spectacular failure mode for a
- * cosmetic "have we shown the intro yet?" flag.
- *
- * Both helpers fail soft: if storage is unavailable the intro simply plays
- * every time, which is harmless.
+ * There is no persisted "have we shown it?" flag any more: the intro plays on
+ * every page load by design, so the only question other components need
+ * answered is "how much of it is left?".
  */
-function readSeen(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    return window.sessionStorage.getItem(SEEN_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function markSeen(): void {
-  try {
-    window.sessionStorage?.setItem(SEEN_KEY, 'true');
-  } catch {
-    // Storage unavailable — nothing to do, the intro just replays.
-  }
-}
+const APP_LOADED_AT = Date.now();
 
 /**
- * Whether the intro will play on this mount.
+ * Milliseconds of intro still to run, from now.
  *
- * Other components use this to schedule their own entrance for *after* the
- * overlay lifts — otherwise their animation plays behind it and is never seen.
+ * Components whose own entrance would otherwise play *underneath* the overlay
+ * use this to schedule around it — that's why the "Log a meeting" button waits
+ * before extending. Returns 0 once the intro is done, so a component mounting
+ * later (navigating to another page, say) doesn't wait for an overlay that
+ * isn't there.
  */
-export function introWillPlay(): boolean {
-  if (typeof window === 'undefined') return false;
-  return !readSeen();
+export function introRemainingMs(): number {
+  if (typeof window === 'undefined') return 0;
+  return Math.max(0, INTRO_DURATION_S * 1000 - (Date.now() - APP_LOADED_AT));
 }
 
 export function AppIntro() {
   const { reduced } = useAppMotion();
-  const [visible, setVisible] = useState(() => introWillPlay());
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     if (!visible) return;
     if (reduced) {
-      markSeen();
       setVisible(false);
       return;
     }
-    const id = window.setTimeout(() => {
-      markSeen();
-      setVisible(false);
-    }, INTRO_DURATION_S * 1000);
+    const id = window.setTimeout(() => setVisible(false), INTRO_DURATION_S * 1000);
     return () => window.clearTimeout(id);
   }, [visible, reduced]);
 
