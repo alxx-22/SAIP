@@ -1,0 +1,260 @@
+import { useState } from 'react';
+import { Box, Button, Text } from 'grommet';
+import { AddCircle, LinkPrevious } from 'grommet-icons';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Link, useParams } from 'react-router-dom';
+import { useAccountService } from '@/services';
+import { formatCurrency } from '@/services/derive';
+import { useAsync } from '@/hooks/useAsync';
+import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
+import { ValueOverviewRibbon } from '@/components/focus/ValueOverviewRibbon';
+import { ActiveContractsRibbon } from '@/components/focus/ActiveContractsRibbon';
+import { AccountMonitoringRibbon } from '@/components/focus/AccountMonitoringRibbon';
+import { MeetingHistory } from '@/components/meetings/MeetingHistory';
+import { ScoresOverview } from '@/components/scores/ScoresOverview';
+import { SkeletonBar } from '@/components/common/Skeleton';
+import { SampleDataBadge } from '@/components/common/SampleDataBadge';
+import { fadeRise } from '@/motion/variants';
+import { duration, easing } from '@/motion/tokens';
+import { useAppMotion } from '@/motion/useAppMotion';
+
+type RibbonKey = 'value' | 'contracts' | 'monitoring' | 'meetings';
+
+const RIBBONS: { key: RibbonKey; label: string; heading: string }[] = [
+  { key: 'value', label: 'Value Overview', heading: 'Value Overview' },
+  { key: 'contracts', label: 'Active Service Contracts', heading: 'Active Service Contracts' },
+  { key: 'monitoring', label: 'Account Monitoring', heading: 'Account Monitoring' },
+  // See MeetingHistory for why this one is here — it is not a brief ribbon.
+  { key: 'meetings', label: 'Recent Meetings', heading: 'Recent Meetings' },
+];
+
+/**
+ * Account Focus (brief §7.3).
+ *
+ * The three ribbons are presented as tabs on a single page — all reachable
+ * without navigating away, as the brief requires. Tabs were chosen over
+ * stacked sections because Account Monitoring is a long form; stacking it under
+ * two data ribbons would bury the thing the rep is most often here to edit.
+ *
+ * "Log a meeting" here passes the account id, so the modal shows it locked.
+ */
+export function AccountFocusPage() {
+  const { accountId = '' } = useParams();
+  const service = useAccountService();
+  const { reduced } = useAppMotion();
+  const { openMeetingLog, savedCount } = useMeetingLog();
+  const [active, setActive] = useState<RibbonKey>('value');
+
+  const { data: account, loading } = useAsync(
+    () => service.getAccount(accountId),
+    [accountId, service],
+  );
+
+  return (
+    <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
+      <motion.div variants={fadeRise(reduced)} initial="hidden" animate="visible">
+        <Box gap="small">
+          <Link
+            to="/"
+            style={{
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              width: 'fit-content',
+            }}
+          >
+            <LinkPrevious size="small" color="icon-primary" />
+            <Text size="small" color="text-primary">
+              All accounts
+            </Text>
+          </Link>
+
+          <Box direction="row" align="start" justify="between" gap="medium" wrap>
+            <Box gap="xxsmall">
+              {loading ? (
+                <SkeletonBar height="34px" width="320px" />
+              ) : (
+                <Box direction="row" align="center" gap="small" wrap>
+                  <Text
+                    as="h1"
+                    size="xxlarge"
+                    weight={600}
+                    color="text-strong"
+                    margin="none"
+                  >
+                    {/* PLACEHOLDER DATA — fictional account name. */}
+                    {account?.accountName ?? 'Unknown account'}
+                  </Text>
+                  <SampleDataBadge />
+                </Box>
+              )}
+
+              {account && (
+                <Text color="text-weak">
+                  {account.industry} · {account.region} ·{' '}
+                  {formatCurrency(account.annualServicesRevenue, account.currency)} annual
+                  services revenue
+                </Text>
+              )}
+            </Box>
+
+            <Button
+              primary
+              icon={<AddCircle />}
+              label="Log a meeting"
+              // Account id passed → modal locks the account.
+              onClick={() => openMeetingLog(accountId)}
+              disabled={!accountId}
+            />
+          </Box>
+        </Box>
+      </motion.div>
+
+      {/* Account-level scores, above the ribbons. */}
+      <motion.div variants={fadeRise(reduced)} initial="hidden" animate="visible">
+        <ScoresOverview
+          accountId={accountId}
+          heading="Scores"
+          description="Relationship and spend health for this account."
+        />
+      </motion.div>
+
+      {/* ── Ribbon tabs ──────────────────────────────────────────────────── */}
+      <Box gap="medium">
+        <Box
+          direction="row"
+          gap="xsmall"
+          role="tablist"
+          aria-label="Account detail sections"
+          border={{ side: 'bottom', color: 'border-weak' }}
+          overflow={{ horizontal: 'auto' }}
+          flex={false}
+        >
+          {RIBBONS.map((ribbon) => (
+            <RibbonTab
+              key={ribbon.key}
+              label={ribbon.label}
+              selected={active === ribbon.key}
+              reduced={reduced}
+              onSelect={() => setActive(ribbon.key)}
+              controls={`panel-${ribbon.key}`}
+              id={`tab-${ribbon.key}`}
+            />
+          ))}
+        </Box>
+
+        {/* Panels cross-fade; `mode="wait"` stops the outgoing and incoming
+            ribbons from overlapping mid-transition. */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={active}
+            id={`panel-${active}`}
+            role="tabpanel"
+            aria-labelledby={`tab-${active}`}
+            tabIndex={0}
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={
+              reduced
+                ? { opacity: 0 }
+                : {
+                    opacity: 0,
+                    y: -6,
+                    transition: { duration: duration.exit, ease: easing.in },
+                  }
+            }
+            transition={{ duration: duration.entrance, ease: easing.out }}
+            style={{ outline: 'none' }}
+          >
+            <Box gap="small">
+              <Text as="h2" size="large" weight={600} color="text-strong" margin="none">
+                {RIBBONS.find((r) => r.key === active)?.heading}
+              </Text>
+
+              {active === 'value' && <ValueOverviewRibbon accountId={accountId} />}
+              {active === 'contracts' && <ActiveContractsRibbon accountId={accountId} />}
+              {active === 'monitoring' && (
+                <AccountMonitoringRibbon accountId={accountId} />
+              )}
+              {active === 'meetings' && (
+                <MeetingHistory accountId={accountId} refreshKey={savedCount} />
+              )}
+            </Box>
+          </motion.div>
+        </AnimatePresence>
+      </Box>
+
+      {/* Keeps the Copilot launcher clear of page content. */}
+      <Box height="48px" flex={false} />
+    </Box>
+  );
+}
+
+/**
+ * A single ribbon tab.
+ *
+ * Real `role="tab"` semantics with `aria-selected` and `aria-controls`, and a
+ * shared `layoutId` underline so switching ribbons slides the indicator rather
+ * than snapping it.
+ */
+function RibbonTab({
+  label,
+  selected,
+  reduced,
+  onSelect,
+  controls,
+  id,
+}: {
+  label: string;
+  selected: boolean;
+  reduced: boolean;
+  onSelect: () => void;
+  controls: string;
+  id: string;
+}) {
+  return (
+    <motion.button
+      type="button"
+      role="tab"
+      id={id}
+      aria-selected={selected}
+      aria-controls={controls}
+      onClick={onSelect}
+      whileHover={reduced ? undefined : { y: -1 }}
+      transition={{ duration: duration.fast, ease: easing.out }}
+      style={{
+        position: 'relative',
+        border: 'none',
+        background: 'none',
+        cursor: 'pointer',
+        font: 'inherit',
+        padding: '10px 14px',
+        whiteSpace: 'nowrap',
+        color: selected
+          ? 'var(--hpe-color-text-strong)'
+          : 'var(--hpe-color-text-weak)',
+        fontWeight: selected ? 600 : 400,
+      }}
+    >
+      {label}
+      {selected && (
+        <motion.div
+          layoutId="saip-ribbon-underline"
+          transition={
+            reduced ? { duration: 0 } : { duration: duration.standard, ease: easing.inOut }
+          }
+          style={{
+            position: 'absolute',
+            left: 8,
+            right: 8,
+            bottom: -1,
+            height: 2,
+            borderRadius: 2,
+            background: 'var(--hpe-color-decorative-brand)',
+          }}
+        />
+      )}
+    </motion.button>
+  );
+}

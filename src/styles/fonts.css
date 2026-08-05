@@ -1,0 +1,60 @@
+/**
+ * HPE Graphik @font-face definitions.
+ *
+ * Source of truth: the woff2 URLs below were read out of the published
+ * `grommet-theme-hpe@8.1.4` bundle, not hand-written, so they match what HPE
+ * itself serves.
+ *
+ * ASSUMPTION (see README "Token provenance"): HPE's CDN publishes
+ * Extralight / Regular / Medium / Semibold / Bold. There is no file named
+ * "Light", so `--hpe-fontWeight-light: 300` is mapped to the Extralight web
+ * font here. Confirm with the HPE brand team before release.
+ *
+ * In Power Pages, move this block into the site's base Web Template <head>
+ * so the fonts load once per site rather than once per component.
+ */
+
+@font-face {
+  font-family: 'HPE Graphik';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('https://www.hpe.com/content/dam/hpe/fonts/graphik/HPEGraphik-Extralight-Web.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'HPE Graphik';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://www.hpe.com/content/dam/hpe/fonts/graphik/HPEGraphik-Regular-Web.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'HPE Graphik';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('https://www.hpe.com/content/dam/hpe/fonts/graphik/HPEGraphik-Medium-Web.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'HPE Graphik';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('https://www.hpe.com/content/dam/hpe/fonts/graphik/HPEGraphik-Semibold-Web.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'HPE Graphik';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('https://www.hpe.com/content/dam/hpe/fonts/graphik/HPEGraphik-Bold-Web.woff2')
+    format('woff2');
+}

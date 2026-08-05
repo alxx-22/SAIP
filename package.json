@@ -1,0 +1,31 @@
+{
+  "name": "saip-portal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SAIP — Services Account Intelligence Portal. Front-end prototype for Microsoft Power Pages.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "framer-motion": "^11.15.0",
+    "grommet": "^2.56.0",
+    "grommet-icons": "^4.12.1",
+    "grommet-theme-hpe": "^8.1.4",
+    "hpe-design-tokens": "^2.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "styled-components": "^6.1.13"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

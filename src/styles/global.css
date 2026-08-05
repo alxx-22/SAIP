@@ -1,0 +1,96 @@
+/**
+ * Global app styling.
+ *
+ * Every colour, radius, spacing and shadow value below resolves to a real
+ * token from `hpe-design-tokens@2.2.3` (imported in main.tsx). No raw hex
+ * values are used anywhere in this codebase — see README "Token provenance".
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+/**
+ * `min-height` rather than `height` so the app grows with its content and
+ * scrolls with the document. See the note in main.tsx — a fixed-height app that
+ * scrolls internally does not embed cleanly in a Power Pages template.
+ */
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--hpe-fontStack-primary);
+  background: var(--hpe-color-background-back);
+  color: var(--hpe-color-text-default);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Keep HPE's focus indicator visible for keyboard users on custom elements. */
+:focus-visible {
+  outline: var(--hpe-focusIndicator-outline);
+  outline-offset: var(--hpe-focusIndicator-outlineOffset);
+}
+
+/**
+ * Global reduced-motion fallback.
+ *
+ * Framer Motion animations are disabled at source via `useAppMotion()`
+ * (src/motion/useAppMotion.ts) so that entrances resolve to their final state
+ * rather than being skipped. This block is the safety net for any CSS
+ * animation/transition — including third-party Grommet internals — so that
+ * nothing moves when the user has asked for reduced motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/**
+ * Visually hidden, still announced by screen readers.
+ * Used for table captions and other context that would be redundant on screen
+ * but is needed to make the markup navigable without sight.
+ */
+.saip-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skeleton shimmer — used while the service layer is resolving. */
+@keyframes saip-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+/* Soft ambient pulse for "needs attention" / "renewing soon" states. */
+@keyframes saip-attention-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
