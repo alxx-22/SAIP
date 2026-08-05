@@ -3,16 +3,17 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAppMotion } from '@/motion/useAppMotion';
 
 /**
- * Opening animation: the SAIP wordmark flickers on across the middle of the
- * screen, holds, then flickers off — both sweeping left to right.
+ * Opening animation: the SAIP wordmark fades in letter by letter, left to
+ * right, each letter rising slightly into place. The whole overlay then fades
+ * away.
  *
  * The "i" is deliberately lower-case and set in the HPE accent green, so the
  * mark carries the brand colour rather than needing a separate device.
  *
- * Plays once per browser tab (`sessionStorage`), not per route change — a rep
- * navigating around all day should see this once, not on every trip Home.
- * Under reduced motion it never mounts: there is nothing here but motion, so
- * the correct fallback is to go straight to the app.
+ * Plays once per browser tab, not per route change — a rep navigating around
+ * all day should see this once, not on every trip Home. Under reduced motion it
+ * never mounts: there is nothing here but motion, so the correct fallback is to
+ * go straight to the app.
  */
 const SEEN_KEY = 'saip.intro.seen';
 
@@ -23,17 +24,22 @@ const LETTERS = [
   { char: 'P', accent: false },
 ];
 
-/** Per-letter stagger for the flicker sweep, in seconds. */
-const FLICKER_STEP = 0.13;
-/** How long the wordmark holds fully lit before flickering out. */
-const HOLD_S = 0.5;
+/** Per-letter delay for the left-to-right sweep, in seconds. */
+const LETTER_STEP = 0.07;
+/** How long a single letter takes to fade and rise into place. */
+const LETTER_DURATION = 0.32;
+/** How long the finished wordmark holds before the overlay leaves. */
+const HOLD_S = 0.26;
+/** How far each letter travels upward as it fades in, in px. */
+const RISE_PX = 14;
 
 /**
- * Total time the intro occupies the screen.
- * in-sweep + hold + out-sweep, plus a little slack for the final fade.
+ * How long the intro occupies the screen before it starts leaving.
+ * Kept deliberately short — this sits in front of the app on every fresh tab,
+ * so it should register and get out of the way.
  */
 export const INTRO_DURATION_S =
-  LETTERS.length * FLICKER_STEP + 0.45 + HOLD_S + LETTERS.length * FLICKER_STEP + 0.35;
+  (LETTERS.length - 1) * LETTER_STEP + LETTER_DURATION + HOLD_S;
 
 /**
  * Session storage access, guarded.
@@ -79,7 +85,6 @@ export function introWillPlay(): boolean {
 export function AppIntro() {
   const { reduced } = useAppMotion();
   const [visible, setVisible] = useState(() => introWillPlay());
-  const [phase, setPhase] = useState<'in' | 'out'>('in');
 
   useEffect(() => {
     if (!visible) return;
@@ -88,21 +93,11 @@ export function AppIntro() {
       setVisible(false);
       return;
     }
-
-    // Flicker in, hold, then flicker out.
-    const outAt = (LETTERS.length * FLICKER_STEP + 0.45 + HOLD_S) * 1000;
-    const doneAt = INTRO_DURATION_S * 1000;
-
-    const toOut = window.setTimeout(() => setPhase('out'), outAt);
-    const toDone = window.setTimeout(() => {
+    const id = window.setTimeout(() => {
       markSeen();
       setVisible(false);
-    }, doneAt);
-
-    return () => {
-      window.clearTimeout(toOut);
-      window.clearTimeout(toDone);
-    };
+    }, INTRO_DURATION_S * 1000);
+    return () => window.clearTimeout(id);
   }, [visible, reduced]);
 
   return (
@@ -114,7 +109,9 @@ export function AppIntro() {
           // this being read out, and announcing it would only delay content.
           aria-hidden
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.28, ease: 'easeIn' } }}
+          // The whole overlay leaves together; the letters don't animate out
+          // individually, which keeps the exit quick and clean.
+          exit={{ opacity: 0, transition: { duration: 0.24, ease: 'easeIn' } }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -138,14 +135,11 @@ export function AppIntro() {
             }}
           >
             {LETTERS.map((letter, i) => (
-              <FlickerLetter
+              <RiseLetter
                 key={i}
                 char={letter.char}
                 accent={letter.accent}
-                // Left-to-right on the way in AND on the way out, so the sweep
-                // always travels the same direction.
-                delay={i * FLICKER_STEP}
-                phase={phase}
+                delay={i * LETTER_STEP}
               />
             ))}
           </div>
@@ -156,45 +150,32 @@ export function AppIntro() {
 }
 
 /**
- * One letter of the wordmark.
+ * One letter of the wordmark: fades in while rising a little into place.
  *
- * The flicker is an opacity keyframe sequence rather than a smooth fade —
- * uneven steps with a couple of stutters, like a tube light striking. Framer
- * interpolates between keyframes, so the `times` array is what keeps the
- * stutters sharp instead of turning the whole thing into a slow pulse.
+ * Eased out rather than sprung — a spring would overshoot and the four letters
+ * would settle at visibly different moments, which reads as wobble on
+ * something this large.
  */
-function FlickerLetter({
+function RiseLetter({
   char,
   accent,
   delay,
-  phase,
 }: {
   char: string;
   accent: boolean;
   delay: number;
-  phase: 'in' | 'out';
 }) {
-  const flickerIn = {
-    opacity: [0, 0.9, 0.15, 1, 0.35, 1],
-    times: [0, 0.15, 0.3, 0.5, 0.65, 1],
-  };
-  const flickerOut = {
-    opacity: [1, 0.25, 0.85, 0.1, 0.4, 0],
-    times: [0, 0.2, 0.35, 0.6, 0.75, 1],
-  };
-  const active = phase === 'in' ? flickerIn : flickerOut;
-
   return (
     <motion.span
-      initial={{ opacity: 0 }}
-      animate={{ opacity: active.opacity }}
+      initial={{ opacity: 0, y: RISE_PX }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: phase === 'in' ? 0.45 : 0.4,
-        times: active.times,
+        duration: LETTER_DURATION,
         delay,
-        ease: 'linear',
+        ease: [0.16, 1, 0.3, 1],
       }}
       style={{
+        display: 'inline-block',
         color: accent ? 'var(--saip-accent)' : 'var(--hpe-color-text-strong)',
         // Only the accent letter glows, so the eye lands on it.
         textShadow: accent ? '0 0 28px var(--saip-accent)' : 'none',

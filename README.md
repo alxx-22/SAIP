@@ -165,7 +165,7 @@ reduced-motion fallback cannot be forgotten in a new component.
 | Type | Behaviour |
 | --- | --- |
 | Entrance | Staggered reveals throughout — nav items, score cards, account rows, metric tiles, contract rows, form fields, modal fields. Gauges fill from zero while figures count up; the header slides down and the brand mark draws itself in; a one-shot light sweep crosses score cards and metric tiles as they land. |
-| Opening | The SAIP wordmark flickers on and off across the middle of the screen; see "Opening animation" below. |
+| Opening | The SAIP wordmark fades in letter by letter, left to right; see "Opening animation" below. |
 | Route | Pages animate **in** on a key change. There is deliberately no route *exit* animation — see "Two things not to reintroduce". |
 | Tabs | Ribbon panels enter from the side you came from; the active underline is a shared `layoutId` element that slides between tabs and carries a brand glow. |
 | Exit | Modal, calendar popover, Copilot panel and tab panels all animate out. Nothing disappears abruptly. |
@@ -231,15 +231,16 @@ missing/overdue executive sponsor service review.
 
 ### Opening animation
 
-`AppIntro` flickers the SAIP wordmark on across the middle of the screen, holds,
-then flickers it off — both sweeps travelling left to right. The **"i" is
+`AppIntro` fades the SAIP wordmark in letter by letter, left to right, each
+letter rising slightly into place. The whole overlay then fades away — the
+letters don't animate out individually, which keeps the exit quick. The **"i" is
 lower-case and set in the accent green**, so the mark carries the brand colour
 without needing a separate device.
 
-The flicker is an opacity keyframe sequence with uneven steps and a couple of
-stutters — like a tube light striking — rather than a fade. The `times` array on
-each letter is what keeps the stutters sharp; without it Framer smooths the
-whole thing into a slow pulse.
+It runs to about **0.85s** on screen. This sits in front of the app on every
+fresh tab, so it should register and get out of the way. Letters are eased
+rather than sprung: a spring overshoots, and four letters settling at visibly
+different moments reads as wobble at this size.
 
 It plays **once per browser tab** (`sessionStorage`), not on every route change,
 which would be exhausting for someone in this all day. Under reduced motion it
