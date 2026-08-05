@@ -43,10 +43,26 @@ export const easing = {
   inOut: [0.65, 0, 0.35, 1] as const,
 } as const;
 
+/**
+ * Spring presets. Springs are used where an element should feel physical —
+ * something popping into place, a control responding to a press — while the
+ * duration/easing pairs above drive everything that should feel composed.
+ */
+export const spring = {
+  /** Crisp, minimal overshoot. Popovers, chips. */
+  snappy: { type: 'spring', stiffness: 420, damping: 26 } as const,
+  /** Noticeable bounce. Confirmations, the Copilot launcher. */
+  bouncy: { type: 'spring', stiffness: 380, damping: 17 } as const,
+  /** Heavier, settled. Panels and modals. */
+  soft: { type: 'spring', stiffness: 260, damping: 28 } as const,
+} as const;
+
 /** Per-item delay for staggered list/grid reveals. */
 export const stagger = {
   list: 0.055,
   card: 0.075,
+  /** Tight stagger for dense groups — form fields, chips, nav items. */
+  tight: 0.035,
   /** Delay before a stagger group begins, letting the container settle first. */
   groupDelay: 0.08,
 } as const;
@@ -58,6 +74,48 @@ export const stagger = {
 export const travel = {
   small: 8,
   medium: 14,
+  large: 24,
+} as const;
+
+/**
+ * Glow treatments.
+ *
+ * PLACEHOLDER — HPE publishes shadow tokens (`--hpe-shadow-*`) but nothing for
+ * coloured glow, so these are composed from the semantic *colour* tokens rather
+ * than invented hex. Each entry is a `box-shadow` string built from a token, so
+ * a glow can never drift away from the palette it belongs to.
+ *
+ * Glow is used to mark state (attention, selection, focus), never as ambient
+ * decoration on a resting element.
+ */
+export const glow = {
+  ok: '0 0 0 1px var(--hpe-color-border-ok), 0 0 18px -4px var(--hpe-color-foreground-ok)',
+  warning:
+    '0 0 0 1px var(--hpe-color-border-warning), 0 0 18px -4px var(--hpe-color-foreground-warning)',
+  critical:
+    '0 0 0 1px var(--hpe-color-border-critical), 0 0 20px -4px var(--hpe-color-foreground-critical)',
+  primary:
+    '0 0 0 1px var(--hpe-color-border-selected), 0 0 20px -4px var(--hpe-color-foreground-primary)',
+  /** Soft neutral lift used on card hover, so hover reads as depth not colour. */
+  neutral: '0 0 24px -6px var(--hpe-color-border-strong)',
+} as const;
+
+/** Drop-shadow filters for SVG strokes, where box-shadow does not apply. */
+export const svgGlow = {
+  ok: 'drop-shadow(0 0 6px var(--hpe-color-foreground-ok))',
+  warning: 'drop-shadow(0 0 6px var(--hpe-color-foreground-warning))',
+  critical: 'drop-shadow(0 0 8px var(--hpe-color-foreground-critical))',
+} as const;
+
+/**
+ * Scroll-reveal configuration. `amount` is how much of the element must be in
+ * view before it animates; `margin` pulls the trigger point up so content is
+ * already settled by the time it is read.
+ */
+export const scrollReveal = {
+  once: true,
+  amount: 0.15,
+  margin: '0px 0px -80px 0px',
 } as const;
 
 /** CSS-consumable equivalents, for the few places that use CSS not Framer. */

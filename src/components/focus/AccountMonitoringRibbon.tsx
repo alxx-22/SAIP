@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, FormField, Text, TextInput } from 'grommet';
+import { Box, Button, FormField, Text } from 'grommet';
 import { Checkmark, CircleAlert, StatusGoodSmall } from 'grommet-icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAccountService, type AccountMonitoring } from '@/services';
@@ -8,14 +8,14 @@ import {
   formatRelative,
   heldWithinLastYear,
   isOverdue,
-  todayIso,
 } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
 import { confirmPop, staggerContainer, staggerItem } from '@/motion/variants';
-import { duration, easing } from '@/motion/tokens';
+import { duration, easing, glow, spring, stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
+import { DatePicker } from '@/components/common/DatePicker';
 
 type SaveState = 'idle' | 'saving' | 'saved';
 
@@ -78,7 +78,10 @@ export function AccountMonitoringRibbon({ accountId }: { accountId: string }) {
     );
   }
 
-  function setProximity(key: keyof AccountMonitoring['customerProximity'], value: string) {
+  function setProximity(
+    key: keyof AccountMonitoring['customerProximity'],
+    value: string | null,
+  ) {
     setDraft((d) =>
       d
         ? { ...d, customerProximity: { ...d.customerProximity, [key]: value || null } }
@@ -89,7 +92,7 @@ export function AccountMonitoringRibbon({ accountId }: { accountId: string }) {
 
   function setCentricity(
     key: keyof AccountMonitoring['customerCentricity'],
-    value: string,
+    value: string | null,
   ) {
     setDraft((d) =>
       d
@@ -139,7 +142,7 @@ export function AccountMonitoringRibbon({ accountId }: { accountId: string }) {
       >
         {/* ── Customer Proximity ─────────────────────────────────────────── */}
         <motion.div variants={staggerItem(reduced)}>
-          <Section title="Customer Proximity">
+          <Section title="Customer Proximity" reduced={reduced}>
             <DateField
               id="mon-stakeholder-meeting"
               label="Last meeting with key stakeholders"
@@ -177,7 +180,7 @@ export function AccountMonitoringRibbon({ accountId }: { accountId: string }) {
 
         {/* ── Customer Centricity ────────────────────────────────────────── */}
         <motion.div variants={staggerItem(reduced)}>
-          <Section title="Customer Centricity">
+          <Section title="Customer Centricity" reduced={reduced}>
             <DateField
               id="mon-customer-visit"
               label="Last visit to customer"
@@ -260,8 +263,32 @@ export function AccountMonitoringRibbon({ accountId }: { accountId: string }) {
                   round="xsmall"
                   background="background-ok"
                   role="status"
+                  style={{ position: 'relative', boxShadow: glow.ok }}
                 >
-                  <Checkmark size="small" color="icon-ok" />
+                  {/* Ring burst — expands and fades once as the save lands. */}
+                  {!reduced && (
+                    <motion.span
+                      initial={{ opacity: 0.7, scale: 0.85 }}
+                      animate={{ opacity: 0, scale: 1.5 }}
+                      transition={{ duration: 0.7, ease: easing.out }}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: 'var(--hpe-radius-xsmall)',
+                        border: '2px solid var(--hpe-color-foreground-ok)',
+                        pointerEvents: 'none',
+                      }}
+                      aria-hidden
+                    />
+                  )}
+                  <motion.span
+                    initial={reduced ? false : { scale: 0.3, rotate: -30 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={spring.bouncy}
+                    style={{ display: 'flex' }}
+                  >
+                    <Checkmark size="small" color="icon-ok" />
+                  </motion.span>
                   <Text size="small" weight={600} color="text-strong">
                     Saved
                   </Text>
@@ -282,21 +309,43 @@ export function AccountMonitoringRibbon({ accountId }: { accountId: string }) {
   );
 }
 
-/** A titled group of related fields. `<h3>` sits correctly under the ribbon `<h2>`. */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * A titled group of related fields. `<h3>` sits correctly under the ribbon `<h2>`.
+ *
+ * Reveals as the section scrolls into view and cascades its own fields in, so a
+ * long form arrives in readable groups rather than all at once.
+ */
+function Section({
+  title,
+  children,
+  reduced,
+}: {
+  title: string;
+  children: React.ReactNode;
+  reduced: boolean;
+}) {
   return (
-    <Box
-      pad="medium"
-      round="medium"
-      background="background-front"
-      border={{ color: 'border-weak' }}
-      gap="small"
+    <motion.div
+      variants={staggerContainer(reduced, stagger.tight)}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.12 }}
     >
-      <Text as="h3" size="medium" weight={600} color="text-strong" margin="none">
-        {title}
-      </Text>
-      <Box gap="small">{children}</Box>
-    </Box>
+      <Box
+        pad="medium"
+        round="medium"
+        background="background-front"
+        border={{ color: 'border-weak' }}
+        gap="small"
+      >
+        <motion.div variants={staggerItem(reduced)}>
+          <Text as="h3" size="medium" weight={600} color="text-strong" margin="none">
+            {title}
+          </Text>
+        </motion.div>
+        <Box gap="medium">{children}</Box>
+      </Box>
+    </motion.div>
   );
 }
 
@@ -318,15 +367,17 @@ function DateField({
   id: string;
   label: string;
   value: string | null;
-  onChange: (value: string) => void;
+  onChange: (value: string | null) => void;
   derived?: React.ReactNode;
   /** Marks a field whose name the account team has not yet confirmed. */
   provisional?: boolean;
 }) {
   const overdue = isOverdue(value);
+  const { reduced } = useAppMotion();
 
   return (
-    <Box gap="xxsmall">
+    <motion.div variants={staggerItem(reduced)}>
+      <Box gap="xxsmall">
       <FormField
         label={
           <Box direction="row" align="center" gap="xsmall" wrap>
@@ -351,14 +402,7 @@ function DateField({
         name={id}
         contentProps={{ border: undefined }}
       >
-        <TextInput
-          id={id}
-          name={id}
-          type="date"
-          max={todayIso()}
-          value={value ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <DatePicker id={id} value={value} onChange={onChange} />
       </FormField>
 
       <Box direction="row" align="center" gap="small" wrap>
@@ -366,11 +410,25 @@ function DateField({
           {formatRelative(value)}
         </Text>
 
-        {/* Soft persistent overdue flag — static by design, not animated. */}
+        {/*
+          Persistent overdue flag. Deliberately NOT animated: an overdue field
+          can stay overdue for months, so a looping animation here would be a
+          permanent distraction. It gets a static glow instead — the treatment
+          reads as "flagged" without ever moving.
+        */}
         {overdue && (
-          <Box direction="row" align="center" gap="4px">
+          <Box
+            direction="row"
+            align="center"
+            gap="4px"
+            pad={{ horizontal: 'xsmall', vertical: '2px' }}
+            round="xsmall"
+            background="background-warning"
+            flex={false}
+            style={{ boxShadow: glow.warning }}
+          >
             <CircleAlert size="small" color="icon-warning" />
-            <Text size="xsmall" color="text-warning">
+            <Text size="xsmall" color="text-strong">
               {value
                 ? `Overdue — more than ${MONITORING_OVERDUE_MONTHS} months ago`
                 : 'Not recorded yet'}
@@ -380,7 +438,8 @@ function DateField({
 
         {derived}
       </Box>
-    </Box>
+      </Box>
+    </motion.div>
   );
 }
 
@@ -394,25 +453,40 @@ function DerivedFlag({
   okLabel: string;
   notOkLabel: string;
 }) {
+  const { reduced } = useAppMotion();
+
   return (
-    <Box
-      direction="row"
-      align="center"
-      gap="4px"
-      pad={{ horizontal: 'xsmall', vertical: '2px' }}
-      round="xsmall"
-      background={ok ? 'background-ok' : 'background-warning'}
-      flex={false}
-      style={{ transition: `background-color ${duration.standard}s ${easing.inOut}` }}
+    // Keyed on the flag's own value: when the underlying date changes enough to
+    // flip it, the element remounts and pops, so the consequence of the edit is
+    // visible rather than silently swapping colour.
+    <motion.div
+      key={String(ok)}
+      initial={reduced ? false : { scale: 0.82, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={reduced ? { duration: 0 } : spring.bouncy}
     >
-      {ok ? (
-        <StatusGoodSmall size="small" color="icon-ok" />
-      ) : (
-        <CircleAlert size="small" color="icon-warning" />
-      )}
-      <Text size="xsmall" weight={500} color="text-strong">
-        {ok ? okLabel : notOkLabel}
-      </Text>
-    </Box>
+      <Box
+        direction="row"
+        align="center"
+        gap="4px"
+        pad={{ horizontal: 'xsmall', vertical: '2px' }}
+        round="xsmall"
+        background={ok ? 'background-ok' : 'background-warning'}
+        flex={false}
+        style={{
+          boxShadow: ok ? glow.ok : glow.warning,
+          transition: `background-color ${duration.standard}s ${easing.inOut}`,
+        }}
+      >
+        {ok ? (
+          <StatusGoodSmall size="small" color="icon-ok" />
+        ) : (
+          <CircleAlert size="small" color="icon-warning" />
+        )}
+        <Text size="xsmall" weight={500} color="text-strong">
+          {ok ? okLabel : notOkLabel}
+        </Text>
+      </Box>
+    </motion.div>
   );
 }

@@ -74,6 +74,66 @@ body {
   border: 0;
 }
 
+/**
+ * Buttons lift and glow on hover.
+ *
+ * Applied globally so every Grommet button responds consistently without each
+ * call site having to opt in — the brief asks for every interactive element to
+ * have a deliberate hover response on shared timing.
+ */
+button {
+  transition:
+    transform 140ms ease-out,
+    box-shadow 140ms ease-out,
+    filter 140ms ease-out;
+}
+
+button[type='submit']:hover:not(:disabled),
+button:hover:not(:disabled) {
+  filter: brightness(1.03);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  filter: none;
+}
+
+/**
+ * Inputs glow on focus, matching the brand accent.
+ * Complements — never replaces — HPE's own focus indicator, which stays intact
+ * for keyboard users via the `:focus-visible` rule above.
+ */
+input:focus,
+textarea:focus,
+select:focus {
+  box-shadow:
+    0 0 0 1px var(--hpe-color-border-selected),
+    0 0 16px -5px var(--hpe-color-foreground-primary);
+}
+
+/**
+ * Hover glow on the Value Overview tiles.
+ *
+ * Applied in CSS rather than Framer because the tile is wrapped in Grommet's
+ * <Tip>, which owns the hover handlers — adding a competing JS hover listener
+ * there made the tooltip and the glow disagree about hover state.
+ */
+.saip-value-tile {
+  transition:
+    box-shadow var(--saip-duration-fast, 140ms) ease-out,
+    border-color var(--saip-duration-fast, 140ms) ease-out;
+}
+
+.saip-value-tile:hover,
+.saip-value-tile:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--hpe-color-border-selected),
+    0 0 20px -4px var(--hpe-color-foreground-primary);
+}
+
 /* Skeleton shimmer — used while the service layer is resolving. */
 @keyframes saip-shimmer {
   0% {

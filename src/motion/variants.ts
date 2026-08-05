@@ -1,5 +1,5 @@
 import type { Transition, Variants } from 'framer-motion';
-import { duration, easing, stagger, travel } from './tokens';
+import { duration, easing, glow, spring, stagger, travel } from './tokens';
 
 /**
  * Shared Framer Motion variants.
@@ -13,7 +13,7 @@ import { duration, easing, stagger, travel } from './tokens';
 const instant: Transition = { duration: 0 };
 
 /** Fade + rise. The default entrance for cards, panels and sections. */
-export function fadeRise(reduced: boolean, distance = travel.medium): Variants {
+export function fadeRise(reduced: boolean, distance: number = travel.medium): Variants {
   return {
     hidden: { opacity: 0, y: reduced ? 0 : distance },
     visible: {
@@ -165,10 +165,167 @@ export function confirmPop(reduced: boolean): Variants {
     visible: {
       opacity: 1,
       scale: 1,
-      transition: reduced
-        ? instant
-        : { type: 'spring', stiffness: 420, damping: 18 },
+      transition: reduced ? instant : spring.bouncy,
     },
     exit: { opacity: 0, transition: reduced ? instant : { duration: duration.exit } },
+  };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Expanded motion set
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Section entrance driven by scroll position rather than mount.
+ *
+ * Spread onto a `motion` element: `{...scrollReveal(reduced)}`. Content below
+ * the fold animates as it is reached instead of having already played by the
+ * time the user scrolls to it.
+ */
+export function scrollRevealProps(reduced: boolean, distance: number = travel.large) {
+  if (reduced) {
+    return { initial: false as const, animate: { opacity: 1, y: 0 } };
+  }
+  return {
+    initial: { opacity: 0, y: distance },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.15, margin: '0px 0px -80px 0px' },
+    transition: { duration: duration.entrance, ease: easing.out },
+  };
+}
+
+/**
+ * Route-level transition. Pages leave upward and arrive from below, so
+ * navigation has a consistent direction of travel.
+ */
+export function pageTransition(reduced: boolean): Variants {
+  return {
+    hidden: { opacity: 0, y: reduced ? 0 : travel.medium },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: reduced
+        ? instant
+        : { duration: duration.entrance, ease: easing.out, staggerChildren: stagger.card },
+    },
+    exit: {
+      opacity: 0,
+      y: reduced ? 0 : -travel.small,
+      transition: reduced ? instant : { duration: duration.exit, ease: easing.in },
+    },
+  };
+}
+
+/**
+ * Popover anchored to a trigger — scales up from the edge it is attached to.
+ * `origin` should match the CSS `transform-origin` set on the element.
+ */
+export function popover(reduced: boolean): Variants {
+  return {
+    hidden: { opacity: 0, scale: reduced ? 1 : 0.94, y: reduced ? 0 : -6 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: reduced ? instant : spring.snappy,
+    },
+    exit: {
+      opacity: 0,
+      scale: reduced ? 1 : 0.97,
+      y: reduced ? 0 : -4,
+      transition: reduced ? instant : { duration: duration.exit, ease: easing.in },
+    },
+  };
+}
+
+/**
+ * Tab panel that enters from the direction of travel.
+ * `direction` is +1 when moving to a later tab, -1 when moving back.
+ */
+export function directionalPanel(reduced: boolean, direction: number): Variants {
+  const offset = reduced ? 0 : 28 * (direction >= 0 ? 1 : -1);
+  return {
+    hidden: { opacity: 0, x: offset },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: reduced
+        ? instant
+        : { duration: duration.entrance, ease: easing.out, staggerChildren: stagger.tight },
+    },
+    exit: {
+      opacity: 0,
+      x: -offset,
+      transition: reduced ? instant : { duration: duration.exit, ease: easing.in },
+    },
+  };
+}
+
+/**
+ * Hover treatment that lifts AND glows.
+ * The glow colour comes from the token-built strings in `tokens.ts`, so a
+ * hover state can never introduce an off-palette colour.
+ */
+export function hoverGlow(
+  reduced: boolean,
+  tone: keyof typeof glow = 'neutral',
+  lift = 4,
+) {
+  if (reduced) return {};
+  return {
+    whileHover: {
+      y: -lift,
+      boxShadow: glow[tone],
+      transition: { duration: duration.fast, ease: easing.out },
+    },
+    whileTap: { y: -lift / 2, transition: { duration: duration.fast } },
+  };
+}
+
+/**
+ * Ambient glow pulse for elements that need standing attention — an overdue
+ * contract badge, a score in trouble, the Copilot launcher at rest.
+ *
+ * Returns `{}` under reduced motion; callers keep the static colour treatment,
+ * which carries the same meaning without movement.
+ */
+export function glowPulse(reduced: boolean, tone: keyof typeof glow = 'warning') {
+  if (reduced) return {};
+  return {
+    animate: { boxShadow: ['0 0 0 0 transparent', glow[tone], '0 0 0 0 transparent'] },
+    transition: {
+      duration: duration.ambient,
+      ease: easing.inOut,
+      repeat: Infinity,
+    },
+  };
+}
+
+/**
+ * One-shot light sweep across a surface on entrance.
+ * Used sparingly — the metric tiles and score cards — to make figures feel
+ * freshly delivered rather than already sitting there.
+ */
+export function sweep(reduced: boolean, delay = 0) {
+  if (reduced) return null;
+  return {
+    initial: { x: '-120%' },
+    animate: { x: '120%' },
+    transition: {
+      duration: duration.entrance * 2.4,
+      ease: easing.inOut,
+      delay: delay + 0.2,
+    },
+  };
+}
+
+/** Press/hover treatment for chips and small toggles. */
+export function chipInteraction(reduced: boolean, active: boolean) {
+  if (reduced) return {};
+  return {
+    whileHover: { y: -2, transition: { duration: duration.fast, ease: easing.out } },
+    whileTap: { scale: 0.94, transition: { duration: duration.fast } },
+    animate: active ? { scale: [1, 1.06, 1] } : { scale: 1 },
+    transition: active ? spring.bouncy : { duration: duration.fast },
   };
 }

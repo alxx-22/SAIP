@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Box, Text } from 'grommet';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Score, ScoreStatus } from '@/services';
-import { duration, easing } from '@/motion/tokens';
+import { duration, easing, glow, spring, svgGlow } from '@/motion/tokens';
+import { sweep } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { useCountUp } from '@/hooks/useCountUp';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -11,10 +12,23 @@ import { SampleDataBadge } from '@/components/common/SampleDataBadge';
  * Maps score status to HPE semantic status colours.
  * Semantic tokens only — never raw hex (brief §3, HPE colour-usage guidance).
  */
-const STATUS_COLOR: Record<ScoreStatus, { fg: string; label: string }> = {
-  strong: { fg: 'foreground-ok', label: 'On track' },
-  watch: { fg: 'foreground-warning', label: 'Monitor' },
-  attention: { fg: 'foreground-critical', label: 'Needs attention' },
+const STATUS_COLOR: Record<
+  ScoreStatus,
+  { fg: string; label: string; glow: keyof typeof glow; svg: string }
+> = {
+  strong: { fg: 'foreground-ok', label: 'On track', glow: 'ok', svg: svgGlow.ok },
+  watch: {
+    fg: 'foreground-warning',
+    label: 'Monitor',
+    glow: 'warning',
+    svg: svgGlow.warning,
+  },
+  attention: {
+    fg: 'foreground-critical',
+    label: 'Needs attention',
+    glow: 'critical',
+    svg: svgGlow.critical,
+  },
 };
 
 const GAUGE_SIZE = 132;
@@ -40,6 +54,7 @@ export function ScoreCard({ score, index }: { score: Score; index: number }) {
   const displayValue = useCountUp(score.value);
   const status = STATUS_COLOR[score.status];
   const needsAttention = score.status === 'attention';
+  const sweepProps = sweep(reduced, index * 0.09);
 
   // Stroke offset drives the arc; full circumference = empty gauge.
   const filled = CIRCUMFERENCE * (1 - score.value / 100);
@@ -62,9 +77,30 @@ export function ScoreCard({ score, index }: { score: Score; index: number }) {
         fill="vertical"
         // The card is a figure, not an interactive control — no tabindex.
         style={{
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: hovered && !reduced ? glow[status.glow] : undefined,
           transition: `box-shadow ${duration.standard}s, border-color ${duration.standard}s`,
         }}
       >
+        {/* One-shot light sweep as the card arrives. */}
+        {sweepProps && (
+          <motion.span
+            {...sweepProps}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              width: '55%',
+              pointerEvents: 'none',
+              background:
+                'linear-gradient(100deg, transparent, var(--hpe-color-background-contrast), transparent)',
+              opacity: 0.55,
+            }}
+          />
+        )}
+
         <Box direction="row" justify="between" align="start" gap="xsmall">
           <Text size="medium" weight={600} color="text-strong">
             {score.label}
@@ -79,9 +115,11 @@ export function ScoreCard({ score, index }: { score: Score; index: number }) {
             display={displayValue}
             filled={filled}
             color={status.fg}
+            svgGlowFilter={status.svg}
             reduced={reduced}
             index={index}
             needsAttention={needsAttention}
+            hovered={hovered}
             label={score.label}
           />
 
@@ -126,18 +164,22 @@ function Gauge({
   display,
   filled,
   color,
+  svgGlowFilter,
   reduced,
   index,
   needsAttention,
+  hovered,
   label,
 }: {
   value: number;
   display: number;
   filled: number;
   color: string;
+  svgGlowFilter: string;
   reduced: boolean;
   index: number;
   needsAttention: boolean;
+  hovered: boolean;
   label: string;
 }) {
   return (
@@ -150,12 +192,18 @@ function Gauge({
       <motion.svg
         width={GAUGE_SIZE}
         height={GAUGE_SIZE}
-        // Idle breathing for "needs attention" scores only.
-        animate={needsAttention && !reduced ? { opacity: [1, 0.72, 1] } : undefined}
+        // Idle breathing for "needs attention" scores only. The gauge scales
+        // very slightly with the fade so the pulse reads as a heartbeat rather
+        // than a flicker.
+        animate={
+          needsAttention && !reduced
+            ? { opacity: [1, 0.62, 1], scale: [1, 1.035, 1] }
+            : { scale: hovered && !reduced ? 1.04 : 1 }
+        }
         transition={
           needsAttention && !reduced
             ? { duration: 2.6, ease: easing.inOut, repeat: Infinity }
-            : undefined
+            : spring.snappy
         }
         style={{ transform: 'rotate(-90deg)' }}
         aria-hidden
@@ -179,6 +227,8 @@ function Gauge({
           strokeWidth={STROKE}
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
+          // Coloured glow on the value arc, matching the status colour.
+          style={{ filter: svgGlowFilter }}
           initial={{ strokeDashoffset: reduced ? filled : CIRCUMFERENCE }}
           animate={{ strokeDashoffset: filled }}
           transition={
@@ -225,16 +275,22 @@ function StatusPill({ status, reduced }: { status: ScoreStatus; reduced: boolean
         ? 'background-warning'
         : 'background-critical';
 
+  const pulsing = status === 'attention' && !reduced;
+
   return (
     <motion.div
+      // Attention pills pulse their glow; the others carry a static one.
       animate={
-        status === 'attention' && !reduced ? { opacity: [1, 0.68, 1] } : undefined
+        pulsing
+          ? { boxShadow: ['0 0 0 0 transparent', glow.critical, '0 0 0 0 transparent'] }
+          : { boxShadow: glow[meta.glow] }
       }
       transition={
-        status === 'attention' && !reduced
+        pulsing
           ? { duration: 2.6, ease: easing.inOut, repeat: Infinity }
-          : undefined
+          : { duration: duration.standard }
       }
+      style={{ borderRadius: 'var(--hpe-radius-xsmall)', alignSelf: 'flex-start' }}
     >
       <Box
         pad={{ horizontal: 'small', vertical: '2px' }}

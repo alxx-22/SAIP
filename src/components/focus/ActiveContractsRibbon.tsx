@@ -12,7 +12,7 @@ import {
 } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
 import { staggerContainer, staggerItem } from '@/motion/variants';
-import { duration, easing } from '@/motion/tokens';
+import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -254,10 +254,23 @@ function RenewalBadge({
 
   return (
     <motion.div
-      animate={animate ? { opacity: [1, 0.6, 1] } : undefined}
-      transition={
-        animate ? { duration: 2.6, ease: easing.inOut, repeat: Infinity } : undefined
+      // Renewing-soon badges pulse their glow and breathe very slightly.
+      // Expired badges carry a static critical glow — an expiry isn't urgent
+      // in the same "act now" sense, it's already happened.
+      animate={
+        animate
+          ? {
+              boxShadow: ['0 0 0 0 transparent', glow.warning, '0 0 0 0 transparent'],
+              scale: [1, 1.05, 1],
+            }
+          : { boxShadow: glow[tone] }
       }
+      transition={
+        animate
+          ? { duration: 2.6, ease: easing.inOut, repeat: Infinity }
+          : { duration: duration.standard }
+      }
+      style={{ borderRadius: 'var(--hpe-radius-xsmall)' }}
     >
       <Box
         pad={{ horizontal: 'xsmall', vertical: '2px' }}

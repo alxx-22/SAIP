@@ -120,6 +120,7 @@ Values were read out of the **published packages** (`hpe-design-tokens@2.2.3`,
 | 5 | **12-month monitoring cadence.** | Same — the brief's example (*"no workshop in 12 months"*). Drives both the derived workshop flag and the overdue flags. | `src/services/derive.ts` (`MONITORING_OVERDUE_MONTHS`) |
 | 6 | **Light mode only.** | `color.dark.css` ships in the token package but SAIP has not decided whether it supports dark mode. | `src/main.tsx` — swap the colour CSS import to enable. |
 | 7 | **`en-GB` locale and GBP formatting.** | Mock accounts are all UK & Ireland. Real data will need locale/currency per account. | `src/services/derive.ts` |
+| 8 | **Glow treatments are composed, not tokenised.** | HPE publishes `--hpe-shadow-*` but nothing for coloured glow. Each glow is a `box-shadow` built **from the semantic colour tokens** (`--hpe-color-foreground-ok`, `-warning`, `-critical`, `-primary`), so a glow can't drift off-palette — but the blur radii and spreads are chosen, not sourced. | `src/motion/tokens.ts` (`glow`, `svgGlow`) |
 
 ---
 
@@ -159,10 +160,39 @@ reduced-motion fallback cannot be forgotten in a new component.
 
 | Type | Behaviour |
 | --- | --- |
-| Entrance | Staggered reveals — account rows, score cards, metric tiles, contract rows, form sections. Gauges fill from zero; figures count up. |
-| Exit | Modal, Copilot panel and tab panels animate out. Nothing disappears abruptly. |
-| Idle | Skeleton shimmer while loading; slow opacity pulse on "needs attention" scores and contracts renewing within 90 days. Nothing else moves once settled. |
-| Hover | Every interactive element responds — row slide, card lift, tab lift, chip lift, launcher bounce — all on the same `fast` timing. |
+| Entrance | Staggered reveals throughout — nav items, score cards, account rows, metric tiles, contract rows, form fields, modal fields. Gauges fill from zero while figures count up; the header slides down and the brand mark draws itself in; a one-shot light sweep crosses score cards and metric tiles as they land. |
+| Scroll | Content below the fold reveals as it is reached (`scrollRevealProps`) rather than having already played — the account list, the account-level scores, and each Account Monitoring section. |
+| Route | Pages cross-fade with directional travel via `AnimatePresence mode="wait"`, so navigation reads as movement rather than a redraw. |
+| Tabs | Ribbon panels enter from the side you came from; the active underline is a shared `layoutId` element that slides between tabs and carries a brand glow. |
+| Exit | Modal, calendar popover, Copilot panel and tab panels all animate out. Nothing disappears abruptly. |
+| Idle | Skeleton shimmer while loading; slow glow pulse on "needs attention" scores and contracts renewing within 90 days; an ambient halo on the collapsed Copilot launcher. Nothing else moves once settled. |
+| Hover | Every interactive element responds — account rows slide and grow a brand rail, cards and tiles lift into a coloured glow, chips and tabs lift, the launcher bounces — all on the same `fast` timing. |
+| Feedback | Saves play a spring checkmark with an expanding ring burst; tag chips pop on select; the derived "workshop held in the last 12 months" flag re-pops when an edit flips it, so the consequence of a change is visible. |
+
+### Glow
+
+Glow is used to signal **state** — attention, selection, focus, success — never as
+ambient decoration on a resting element. Every glow is built from a semantic
+colour token, so status colour and glow colour can never disagree. The one place
+glow is deliberately *static* is the Account Monitoring overdue flag: an overdue
+field can stay overdue for months, and a looping animation there would be a
+permanent distraction.
+
+### Date picker
+
+`<input type="date">` has been replaced everywhere by `components/common/DatePicker.tsx`.
+The native control is drawn by the browser, ignores the HPE palette entirely and
+looks like a different product on every OS.
+
+The calendar inside is Grommet's `<Calendar>`, which `grommet-theme-hpe` already
+themes from semantic tokens (day hover, selected, in-range and adjacent-month
+states all resolve to `--hpe-color-*`) — hand-rolling a month grid would have
+meant re-deriving all of that by eye. What is custom is the trigger, the animated
+popover, the Today/Clear actions, the drop-up flip when there's no room below,
+and the focus and keyboard handling. Dates cross the component boundary as
+`YYYY-MM-DD` strings and the day is taken verbatim from Grommet's ISO output
+rather than re-parsed through `Date`, which would shift the day for anyone west
+of UTC.
 
 **`prefers-reduced-motion: reduce` is honoured two ways:** variants collapse to
 zero-duration and zero-travel (so content lands in its final state rather than

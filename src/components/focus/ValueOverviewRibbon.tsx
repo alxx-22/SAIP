@@ -5,8 +5,8 @@ import { useAccountService, type ValueOverview } from '@/services';
 import { formatCurrency, formatCurrencyCompact, formatDate, formatRelative } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
 import { useCountUp } from '@/hooks/useCountUp';
-import { staggerContainer, staggerItem } from '@/motion/variants';
-import { duration, easing, stagger } from '@/motion/tokens';
+import { staggerContainer, staggerItem, sweep } from '@/motion/variants';
+import { duration, easing, glow, stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -72,6 +72,7 @@ export function ValueOverviewRibbon({ accountId }: { accountId: string }) {
       <SlaSpendTile data={data} reduced={reduced} />
 
       <MetricTile
+        sweepDelay={0.08}
         label="Last purchased an upsell"
         display={formatRelative(data.lastUpsellDate)}
         caption={
@@ -88,6 +89,7 @@ export function ValueOverviewRibbon({ accountId }: { accountId: string }) {
       />
 
       <CountUpTile
+        sweepDelay={0.16}
         label="Previous 48-month hardware spend"
         value={data.previous48MonthHardwareSpend}
         currency={data.currency}
@@ -97,6 +99,7 @@ export function ValueOverviewRibbon({ accountId }: { accountId: string }) {
       />
 
       <CountUpTile
+        sweepDelay={0.24}
         label="Predicted next 12-month hardware spend"
         value={data.predictedNext12MonthHardwareSpend}
         currency={data.currency}
@@ -150,6 +153,7 @@ function SlaSpendTile({ data, reduced }: { data: ValueOverview; reduced: boolean
             height: '100%',
             borderRadius: 'var(--hpe-radius-full)',
             background: 'var(--hpe-color-foreground-primary)',
+            boxShadow: glow.primary,
           }}
         />
       </Box>
@@ -170,6 +174,7 @@ function CountUpTile({
   caption,
   tip,
   reduced,
+  sweepDelay,
 }: {
   label: string;
   value: number;
@@ -177,11 +182,12 @@ function CountUpTile({
   caption: string;
   tip: string;
   reduced: boolean;
+  sweepDelay?: number;
 }) {
   const animated = useCountUp(value);
 
   return (
-    <TileShell reduced={reduced} tip={tip}>
+    <TileShell reduced={reduced} tip={tip} sweepDelay={sweepDelay}>
       <Text size="small" color="text-weak">
         {label}
       </Text>
@@ -202,15 +208,17 @@ function MetricTile({
   caption,
   tip,
   reduced,
+  sweepDelay,
 }: {
   label: string;
   display: string;
   caption: string;
   tip: string;
   reduced: boolean;
+  sweepDelay?: number;
 }) {
   return (
-    <TileShell reduced={reduced} tip={tip}>
+    <TileShell reduced={reduced} tip={tip} sweepDelay={sweepDelay}>
       <Text size="small" color="text-weak">
         {label}
       </Text>
@@ -235,15 +243,20 @@ function TileShell({
   children,
   tip,
   reduced,
+  sweepDelay = 0,
 }: {
   children: ReactNode;
   tip: string;
   reduced: boolean;
+  sweepDelay?: number;
 }) {
+  const sweepProps = sweep(reduced, sweepDelay);
+
   return (
     <motion.div
       variants={staggerItem(reduced)}
-      whileHover={reduced ? undefined : { y: -3 }}
+      whileHover={reduced ? undefined : { y: -5, scale: 1.015 }}
+      whileTap={reduced ? undefined : { scale: 0.995 }}
       transition={{ duration: duration.fast, ease: easing.out }}
       style={{ flex: '1 1 220px', minWidth: 220, display: 'flex' }}
     >
@@ -265,8 +278,26 @@ function TileShell({
           gap="xsmall"
           fill
           tabIndex={0}
-          style={{ cursor: 'default' }}
+          className="saip-value-tile"
+          style={{ cursor: 'default', position: 'relative', overflow: 'hidden' }}
         >
+          {/* Light sweep as the tile arrives, then never again. */}
+          {sweepProps && (
+            <motion.span
+              {...sweepProps}
+              aria-hidden
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                width: '55%',
+                pointerEvents: 'none',
+                background:
+                  'linear-gradient(100deg, transparent, var(--hpe-color-background-contrast), transparent)',
+                opacity: 0.6,
+              }}
+            />
+          )}
           <Box direction="row" justify="end">
             {/* PLACEHOLDER DATA — every figure in this ribbon is invented. */}
             <SampleDataBadge />

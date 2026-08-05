@@ -137,9 +137,10 @@ function CopilotLauncher({
           : // Spring + delay: lands after the page entrance has finished.
             { type: 'spring', stiffness: 380, damping: 20, delay: 0.55 }
       }
-      whileHover={reduced ? undefined : { scale: 1.08, y: -2 }}
-      whileTap={reduced ? undefined : { scale: 0.95 }}
+      whileHover={reduced ? undefined : { scale: 1.12, y: -3 }}
+      whileTap={reduced ? undefined : { scale: 0.94 }}
       style={{
+        position: 'relative',
         width: 56,
         height: 56,
         borderRadius: '50%',
@@ -152,6 +153,24 @@ function CopilotLauncher({
         boxShadow: 'var(--hpe-shadow-medium)',
       }}
     >
+      {/*
+        Ambient halo, only while collapsed — once the panel is open the
+        launcher is no longer the thing asking to be noticed.
+      */}
+      {!open && !reduced && (
+        <motion.span
+          aria-hidden
+          animate={{ opacity: [0.35, 0, 0.35], scale: [1, 1.45, 1] }}
+          transition={{ duration: 2.8, ease: easing.inOut, repeat: Infinity }}
+          style={{
+            position: 'absolute',
+            inset: -4,
+            borderRadius: '50%',
+            border: '2px solid var(--hpe-color-foreground-primary)',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       {open ? (
         <Close color="icon-onPrimaryStrong" />
       ) : (

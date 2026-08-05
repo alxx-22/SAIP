@@ -14,8 +14,8 @@ import { MeetingHistory } from '@/components/meetings/MeetingHistory';
 import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
-import { fadeRise } from '@/motion/variants';
-import { duration, easing } from '@/motion/tokens';
+import { directionalPanel, fadeRise, scrollRevealProps } from '@/motion/variants';
+import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 
 type RibbonKey = 'value' | 'contracts' | 'monitoring' | 'meetings';
@@ -44,6 +44,19 @@ export function AccountFocusPage() {
   const { reduced } = useAppMotion();
   const { openMeetingLog, savedCount } = useMeetingLog();
   const [active, setActive] = useState<RibbonKey>('value');
+  /**
+   * Direction of the last tab change: +1 forward, -1 back. Panels enter from
+   * the side you came from, so switching ribbons has a sense of place rather
+   * than every panel arriving identically.
+   */
+  const [direction, setDirection] = useState(1);
+
+  function selectRibbon(key: RibbonKey) {
+    const from = RIBBONS.findIndex((r) => r.key === active);
+    const to = RIBBONS.findIndex((r) => r.key === key);
+    setDirection(to >= from ? 1 : -1);
+    setActive(key);
+  }
 
   const { data: account, loading } = useAsync(
     () => service.getAccount(accountId),
@@ -112,7 +125,7 @@ export function AccountFocusPage() {
       </motion.div>
 
       {/* Account-level scores, above the ribbons. */}
-      <motion.div variants={fadeRise(reduced)} initial="hidden" animate="visible">
+      <motion.div {...scrollRevealProps(reduced)}>
         <ScoresOverview
           accountId={accountId}
           heading="Scores"
@@ -137,7 +150,7 @@ export function AccountFocusPage() {
               label={ribbon.label}
               selected={active === ribbon.key}
               reduced={reduced}
-              onSelect={() => setActive(ribbon.key)}
+              onSelect={() => selectRibbon(ribbon.key)}
               controls={`panel-${ribbon.key}`}
               id={`tab-${ribbon.key}`}
             />
@@ -153,18 +166,10 @@ export function AccountFocusPage() {
             role="tabpanel"
             aria-labelledby={`tab-${active}`}
             tabIndex={0}
-            initial={reduced ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={
-              reduced
-                ? { opacity: 0 }
-                : {
-                    opacity: 0,
-                    y: -6,
-                    transition: { duration: duration.exit, ease: easing.in },
-                  }
-            }
-            transition={{ duration: duration.entrance, ease: easing.out }}
+            variants={directionalPanel(reduced, direction)}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             style={{ outline: 'none' }}
           >
             <Box gap="small">
@@ -252,6 +257,7 @@ function RibbonTab({
             height: 2,
             borderRadius: 2,
             background: 'var(--hpe-color-decorative-brand)',
+            boxShadow: glow.primary,
           }}
         />
       )}

@@ -21,8 +21,14 @@ import { todayIso } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
 import { AnimatedModal } from '@/components/common/AnimatedModal';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
-import { confirmPop, staggerContainer, staggerItem } from '@/motion/variants';
-import { duration, easing } from '@/motion/tokens';
+import { DatePicker } from '@/components/common/DatePicker';
+import {
+  chipInteraction,
+  confirmPop,
+  staggerContainer,
+  staggerItem,
+} from '@/motion/variants';
+import { duration, easing, glow, spring, stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 
 type Phase = 'editing' | 'saving' | 'saved';
@@ -188,7 +194,7 @@ export function MeetingLogModal({
           style={{ maxHeight: '60vh' }}
         >
           <motion.div
-            variants={staggerContainer(reduced)}
+            variants={staggerContainer(reduced, stagger.tight)}
             initial="hidden"
             animate="visible"
             style={{ display: 'grid', gap: 'var(--hpe-spacing-xsmall)' }}
@@ -255,15 +261,14 @@ export function MeetingLogModal({
                 required
                 error={showError('meetingDate')}
               >
-                <TextInput
+                <DatePicker
                   id="meeting-date"
-                  name="meeting-date"
-                  type="date"
+                  value={form.meetingDate || null}
+                  onChange={(v) => setForm((f) => ({ ...f, meetingDate: v ?? '' }))}
+                  // A meeting can't have happened in the future.
                   max={todayIso()}
-                  value={form.meetingDate}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, meetingDate: e.target.value }))
-                  }
+                  clearable={false}
+                  invalid={Boolean(showError('meetingDate'))}
                 />
               </FormField>
             </motion.div>
@@ -409,11 +414,28 @@ function SaveButton({
               background="background-ok"
               // Announce the outcome for screen-reader users.
               role="status"
+              style={{ position: 'relative', boxShadow: glow.ok }}
             >
+              {/* Ring burst expanding out of the confirmation. */}
+              {!reduced && (
+                <motion.span
+                  initial={{ opacity: 0.8, scale: 0.9 }}
+                  animate={{ opacity: 0, scale: 1.6 }}
+                  transition={{ duration: 0.75, ease: easing.out }}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 'var(--hpe-radius-xsmall)',
+                    border: '2px solid var(--hpe-color-foreground-ok)',
+                    pointerEvents: 'none',
+                  }}
+                  aria-hidden
+                />
+              )}
               <motion.span
                 initial={reduced ? false : { scale: 0.4, rotate: -20 }}
                 animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 16 }}
+                transition={spring.bouncy}
                 style={{ display: 'flex' }}
               >
                 <Checkmark size="small" color="icon-ok" />
@@ -476,9 +498,8 @@ function TagPicker({
               type="button"
               onClick={() => onToggle(tag)}
               aria-pressed={active}
-              whileHover={reduced ? undefined : { y: -2 }}
-              whileTap={reduced ? undefined : { scale: 0.96 }}
-              transition={{ duration: duration.fast, ease: easing.out }}
+              // Pops on select, so choosing a tag registers physically.
+              {...chipInteraction(reduced, active)}
               style={{
                 border: `1px solid var(--hpe-color-border-${active ? 'selected' : 'weak'})`,
                 background: active
@@ -492,7 +513,8 @@ function TagPicker({
                 font: 'inherit',
                 fontSize: '0.875rem',
                 fontWeight: active ? 600 : 400,
-                transition: `background-color ${duration.fast}s, border-color ${duration.fast}s`,
+                boxShadow: active ? glow.primary : 'none',
+                transition: `background-color ${duration.fast}s, border-color ${duration.fast}s, box-shadow ${duration.fast}s`,
               }}
             >
               {tag}

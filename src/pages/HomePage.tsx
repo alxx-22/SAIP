@@ -6,7 +6,12 @@ import { useAsync } from '@/hooks/useAsync';
 import { AccountSelectionPane } from '@/components/accounts/AccountSelectionPane';
 import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
-import { fadeRise, staggerContainer, staggerItem } from '@/motion/variants';
+import {
+  fadeRise,
+  scrollRevealProps,
+  staggerContainer,
+  staggerItem,
+} from '@/motion/variants';
 import { stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 
@@ -63,7 +68,9 @@ export function HomePage() {
           />
         </motion.div>
 
-        <motion.div variants={staggerItem(reduced)}>
+        {/* The account list usually sits at or below the fold, so it reveals
+            on scroll rather than having already played by the time it's read. */}
+        <motion.div {...scrollRevealProps(reduced)}>
           <AccountSelectionPane />
         </motion.div>
       </motion.div>

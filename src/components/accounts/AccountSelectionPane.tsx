@@ -7,8 +7,8 @@ import type { Account } from '@/services';
 import { useAccountService } from '@/services';
 import { formatCurrencyCompact, formatRelative } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
-import { staggerContainer, staggerItem } from '@/motion/variants';
-import { duration, easing } from '@/motion/tokens';
+import { scrollRevealProps, staggerContainer, staggerItem } from '@/motion/variants';
+import { duration, easing, glow, spring, travel } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -105,8 +105,15 @@ export function AccountSelectionPane() {
           animate="visible"
           style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}
         >
-          {filtered.map((account) => (
-            <motion.li key={account.accountId} variants={staggerItem(reduced)}>
+          {filtered.map((account, i) => (
+            <motion.li
+              key={account.accountId}
+              // Rows past the first screenful reveal on scroll instead of
+              // having already played before they are reached.
+              {...(i < 5
+                ? { variants: staggerItem(reduced) }
+                : scrollRevealProps(reduced, travel.medium))}
+            >
               <AccountRow
                 account={account}
                 reduced={reduced}
@@ -145,8 +152,8 @@ function AccountRow({
       onHoverEnd={() => setHovered(false)}
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
-      whileHover={reduced ? undefined : { x: 4 }}
-      whileTap={reduced ? undefined : { scale: 0.995 }}
+      whileHover={reduced ? undefined : { x: 6, scale: 1.006 }}
+      whileTap={reduced ? undefined : { scale: 0.994 }}
       transition={{ duration: duration.fast, ease: easing.out }}
       aria-label={`Open ${account.accountName}`}
       style={{
@@ -171,9 +178,29 @@ function AccountRow({
         border={{ color: hovered ? 'border-default' : 'border-weak' }}
         elevation={hovered && !reduced ? 'small' : undefined}
         style={{
+          position: 'relative',
+          boxShadow: hovered && !reduced ? glow.primary : undefined,
           transition: `background-color ${duration.fast}s, border-color ${duration.fast}s, box-shadow ${duration.fast}s`,
         }}
       >
+        {/* Brand rail that grows in from the leading edge on hover. */}
+        <motion.span
+          aria-hidden
+          animate={reduced ? undefined : { scaleY: hovered ? 1 : 0 }}
+          initial={false}
+          transition={spring.snappy}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 8,
+            bottom: 8,
+            width: 3,
+            borderRadius: 3,
+            transformOrigin: 'center',
+            background: 'var(--hpe-color-decorative-brand)',
+          }}
+        />
+
         <Box gap="xxsmall" flex>
           <Box direction="row" align="center" gap="xsmall" wrap>
             <Text weight={600} color="text-strong">

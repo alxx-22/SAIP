@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { Box, Text } from 'grommet';
 import { motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
-import { duration, easing } from '@/motion/tokens';
+import { duration, easing, glow, stagger } from '@/motion/tokens';
+import { staggerContainer, staggerItem } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { IS_USING_PLACEHOLDER_DATA } from '@/services';
 import { CopilotWidget } from './CopilotWidget';
@@ -30,48 +31,69 @@ export function AppShell({ children }: { children: ReactNode }) {
     <Box background="background-back" style={{ minHeight: '100vh' }}>
       {IS_USING_PLACEHOLDER_DATA && <SampleDataBanner reduced={reduced} />}
 
-      <Box
-        as="header"
-        direction="row"
-        align="center"
-        justify="between"
-        pad={{ horizontal: 'medium', vertical: 'small' }}
-        background="background-front"
-        border={{ side: 'bottom', color: 'border-weak' }}
-        flex={false}
+      <motion.header
+        initial={reduced ? false : { y: -18, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: duration.entrance, ease: easing.out }}
         style={{ position: 'sticky', top: 0, zIndex: 20 }}
       >
-        <Box direction="row" align="center" gap="small">
-          {/* Brand mark — HPE's green as a decorative element, from tokens. */}
-          <Box
-            width="6px"
-            height="28px"
-            round="xsmall"
-            background="decorative-brand"
-            flex={false}
-            aria-hidden
-          />
-          <Box>
-            <Text size="large" weight={600} color="text-strong">
-              SAIP
-            </Text>
-            <Text size="xsmall" color="text-weak">
-              Services Account Intelligence Portal
-            </Text>
+        <Box
+          direction="row"
+          align="center"
+          justify="between"
+          pad={{ horizontal: 'medium', vertical: 'small' }}
+          background="background-front"
+          border={{ side: 'bottom', color: 'border-weak' }}
+          flex={false}
+        >
+          <Box direction="row" align="center" gap="small">
+            {/* Brand mark — HPE's green as a decorative element, from tokens.
+                Draws itself in vertically as the header lands. */}
+            <motion.div
+              initial={reduced ? false : { scaleY: 0 }}
+              animate={{ scaleY: 1 }}
+              transition={{ duration: duration.entrance, ease: easing.out, delay: 0.12 }}
+              style={{ transformOrigin: 'center' }}
+              aria-hidden
+            >
+              <Box
+                width="6px"
+                height="28px"
+                round="xsmall"
+                background="decorative-brand"
+                flex={false}
+                style={{ boxShadow: glow.primary }}
+              />
+            </motion.div>
+            <Box>
+              <Text size="large" weight={600} color="text-strong">
+                SAIP
+              </Text>
+              <Text size="xsmall" color="text-weak">
+                Services Account Intelligence Portal
+              </Text>
+            </Box>
           </Box>
-        </Box>
 
-        <Box as="nav" direction="row" gap="xsmall" aria-label="Primary">
-          {NAV_ITEMS.map((item) => (
-            <NavItem
-              key={item.to}
-              {...item}
-              active={location.pathname === item.to}
-              reduced={reduced}
-            />
-          ))}
+          <motion.nav
+            aria-label="Primary"
+            variants={staggerContainer(reduced, stagger.tight)}
+            initial="hidden"
+            animate="visible"
+            style={{ display: 'flex', gap: 'var(--hpe-spacing-xsmall)' }}
+          >
+            {NAV_ITEMS.map((item) => (
+              <motion.div key={item.to} variants={staggerItem(reduced)}>
+                <NavItem
+                  {...item}
+                  active={location.pathname === item.to}
+                  reduced={reduced}
+                />
+              </motion.div>
+            ))}
+          </motion.nav>
         </Box>
-      </Box>
+      </motion.header>
 
       {/* Route content scrolls with the document, not in its own container. */}
       <Box as="main">{children}</Box>
@@ -150,6 +172,7 @@ function NavItem({
               height: 2,
               borderRadius: 2,
               background: 'var(--hpe-color-decorative-brand)',
+              boxShadow: glow.primary,
             }}
           />
         )}
