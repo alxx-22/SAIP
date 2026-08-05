@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   MEETING_PLACES,
   MEETING_TAGS,
+  MEETING_TAG_COLORS,
   useAccountService,
   type MeetingPlace,
   type MeetingTag,
@@ -492,6 +493,7 @@ function TagPicker({
       <Box direction="row" gap="xsmall" wrap>
         {MEETING_TAGS.map((tag) => {
           const active = selected.includes(tag);
+          const colors = MEETING_TAG_COLORS[tag];
           return (
             <motion.button
               key={tag}
@@ -500,12 +502,15 @@ function TagPicker({
               aria-pressed={active}
               // Pops on select, so choosing a tag registers physically.
               {...chipInteraction(reduced, active)}
+              /*
+                Each tag carries its own colour from MEETING_TAG_COLORS.
+                Unselected chips show the colour only as a dot and border so the
+                row doesn't turn into a wall of blocks; selecting one fills it.
+              */
               style={{
-                border: `1px solid var(--hpe-color-border-${active ? 'selected' : 'weak'})`,
-                background: active
-                  ? 'var(--hpe-color-background-selected-primary)'
-                  : 'var(--hpe-color-background-front)',
-                color: 'var(--hpe-color-text-strong)',
+                border: `1px solid ${colors.border}`,
+                background: active ? colors.background : 'var(--hpe-color-background-front)',
+                color: active ? colors.text : 'var(--hpe-color-text-default)',
                 borderRadius: 'var(--hpe-radius-small)',
                 padding: '6px 12px',
                 marginBottom: 4,
@@ -513,10 +518,23 @@ function TagPicker({
                 font: 'inherit',
                 fontSize: '0.875rem',
                 fontWeight: active ? 600 : 400,
-                boxShadow: active ? glow.primary : 'none',
-                transition: `background-color ${duration.fast}s, border-color ${duration.fast}s, box-shadow ${duration.fast}s`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: active ? `0 0 14px -4px ${colors.border}` : 'none',
+                transition: `background-color ${duration.fast}s, border-color ${duration.fast}s, box-shadow ${duration.fast}s, color ${duration.fast}s`,
               }}
             >
+              <span
+                aria-hidden
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: colors.border,
+                  flex: '0 0 auto',
+                }}
+              />
               {tag}
             </motion.button>
           );

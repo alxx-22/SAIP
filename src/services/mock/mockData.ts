@@ -6,7 +6,8 @@
  * Every account name, figure, score, contract, city and date in this file is
  * invented. Nothing here is a real HPE customer or a real commercial figure.
  * The company names are deliberately generic-fictional so they cannot be
- * mistaken for real accounts.
+ * mistaken for real accounts. Contract numbers follow the real 400-prefixed
+ * 10-digit shape but the numbers themselves are made up.
  *
  * Dates are generated RELATIVE TO TODAY rather than hardcoded, so the demo
  * keeps demonstrating its own edge cases as time passes — contracts stay
@@ -22,6 +23,7 @@ import type {
   MeetingLog,
   Score,
   ServiceContract,
+  SlaCoverageModel,
   ValueOverview,
 } from '../types';
 
@@ -58,7 +60,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     region: 'UK & Ireland',
     annualServicesRevenue: 7_140_000,
     currency: 'GBP',
-    activeContractCount: 6,
+    activeContractCount: 4,
     lastMeetingDate: daysFromNow(-3),
   },
   {
@@ -68,7 +70,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     region: 'UK & Ireland',
     annualServicesRevenue: 11_960_000,
     currency: 'GBP',
-    activeContractCount: 9,
+    activeContractCount: 3,
     lastMeetingDate: daysFromNow(-41),
   },
   {
@@ -78,7 +80,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     region: 'UK & Ireland',
     annualServicesRevenue: 9_305_000,
     currency: 'GBP',
-    activeContractCount: 5,
+    activeContractCount: 2,
     lastMeetingDate: daysFromNow(-67),
   },
   {
@@ -88,7 +90,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     region: 'UK & Ireland',
     annualServicesRevenue: 2_450_000,
     currency: 'GBP',
-    activeContractCount: 3,
+    activeContractCount: 2,
     lastMeetingDate: null,
   },
   {
@@ -98,7 +100,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     region: 'UK & Ireland',
     annualServicesRevenue: 6_015_000,
     currency: 'GBP',
-    activeContractCount: 7,
+    activeContractCount: 2,
     lastMeetingDate: daysFromNow(-23),
   },
   {
@@ -108,7 +110,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     region: 'UK & Ireland',
     annualServicesRevenue: 13_720_000,
     currency: 'GBP',
-    activeContractCount: 11,
+    activeContractCount: 2,
     lastMeetingDate: daysFromNow(-8),
   },
   {
@@ -126,8 +128,8 @@ export const MOCK_ACCOUNTS: Account[] = [
 /**
  * PLACEHOLDER DATA — invented scores.
  * Portfolio-level roll-up shown on the homepage Overview.
- * One score is deliberately in `attention` so the ambient breathing state and
- * the "needs attention" colour treatment are visible in the prototype.
+ * One score is deliberately in `attention` so the ambient pulse and the
+ * "needs attention" colour treatment are visible in the prototype.
  */
 export const MOCK_PORTFOLIO_SCORES: Score[] = [
   {
@@ -185,13 +187,168 @@ export const MOCK_DEFAULT_ACCOUNT_SCORES: Score[] = [
   { ...MOCK_PORTFOLIO_SCORES[2], value: 58, status: 'watch', deltaPoints: -1 },
 ];
 
-/** PLACEHOLDER DATA — invented commercial figures. */
-export const MOCK_VALUE_OVERVIEW: Record<string, ValueOverview> = {
+/**
+ * PLACEHOLDER DATA — invented contracts.
+ *
+ * Every contract carries exactly one SLA tier and is identified by a 10-digit
+ * number beginning 400. Renewal dates straddle the 90-day threshold on purpose
+ * so the "renewing soon" flag is demonstrable without editing anything.
+ *
+ * Coverage model differs by account on purpose so both variants of the SLA
+ * spend breakdown can be seen: `location` accounts hold one contract per site,
+ * `customer` accounts hold contracts spanning several sites.
+ */
+export const MOCK_CONTRACTS: Record<string, ServiceContract[]> = {
+  // Contracted per location — one contract per site.
+  'acc-001': [
+    {
+      contractId: '4001842307',
+      sla: 'Tech Care Critical',
+      value: 1_940_000,
+      currency: 'GBP',
+      cities: ['Leeds'],
+      renewalDate: daysFromNow(38),
+    },
+    {
+      contractId: '4001842315',
+      sla: 'Tech Care Basic',
+      value: 620_000,
+      currency: 'GBP',
+      cities: ['Birmingham'],
+      renewalDate: daysFromNow(214),
+    },
+    {
+      contractId: '4001842322',
+      sla: 'Complete Care',
+      value: 1_760_000,
+      currency: 'GBP',
+      cities: ['Glasgow'],
+      renewalDate: daysFromNow(72),
+    },
+    {
+      contractId: '4001842338',
+      sla: 'Tech Care Essential',
+      value: 500_000,
+      currency: 'GBP',
+      cities: ['Cardiff'],
+      renewalDate: daysFromNow(401),
+    },
+  ],
+  // Contracted at customer level — contracts span multiple sites.
+  'acc-002': [
+    {
+      contractId: '4002557104',
+      sla: 'Complete Care',
+      value: 3_100_000,
+      currency: 'GBP',
+      cities: ['London', 'Reading', 'Oxford'],
+      renewalDate: daysFromNow(156),
+    },
+    {
+      contractId: '4002557112',
+      sla: 'Tech Care Critical',
+      value: 2_240_000,
+      currency: 'GBP',
+      cities: ['Sheffield', 'Nottingham'],
+      renewalDate: daysFromNow(19),
+    },
+    {
+      contractId: '4002557129',
+      sla: 'Tech Care Basic',
+      value: 890_000,
+      currency: 'GBP',
+      cities: ['Newcastle', 'Durham'],
+      renewalDate: daysFromNow(287),
+    },
+    {
+      contractId: '4002557135',
+      sla: 'Tech Care Essential',
+      value: 910_000,
+      currency: 'GBP',
+      cities: ['London'],
+      renewalDate: daysFromNow(63),
+    },
+  ],
+  // Contracted per location.
+  'acc-003': [
+    {
+      contractId: '4003914860',
+      sla: 'Complete Care',
+      value: 5_420_000,
+      currency: 'GBP',
+      cities: ['Aberdeen'],
+      renewalDate: daysFromNow(88),
+    },
+    {
+      contractId: '4003914877',
+      sla: 'Tech Care Critical',
+      value: 3_180_000,
+      currency: 'GBP',
+      cities: ['Glasgow'],
+      renewalDate: daysFromNow(342),
+    },
+    {
+      contractId: '4003914883',
+      sla: 'Tech Care Essential',
+      value: 2_060_000,
+      currency: 'GBP',
+      cities: ['Edinburgh'],
+      renewalDate: daysFromNow(11),
+    },
+  ],
+};
+
+/** PLACEHOLDER DATA — fallback contract set for un-seeded accounts. */
+export const MOCK_DEFAULT_CONTRACTS: ServiceContract[] = [
+  {
+    contractId: '4009003121',
+    sla: 'Tech Care Basic',
+    value: 740_000,
+    currency: 'GBP',
+    cities: ['London'],
+    renewalDate: daysFromNow(129),
+  },
+  {
+    contractId: '4009003138',
+    sla: 'Tech Care Essential',
+    value: 1_260_000,
+    currency: 'GBP',
+    cities: ['Manchester', 'Liverpool'],
+    renewalDate: daysFromNow(47),
+  },
+];
+
+/**
+ * PLACEHOLDER DATA — how each account is contracted.
+ * ASSUMPTION: drives whether the SLA spend breakdown counts contracts or
+ * sites. Confirm with the account team — see README.
+ */
+export const MOCK_COVERAGE_MODEL: Record<string, SlaCoverageModel> = {
+  'acc-001': 'location',
+  'acc-002': 'customer',
+  'acc-003': 'location',
+};
+
+export const MOCK_DEFAULT_COVERAGE_MODEL: SlaCoverageModel = 'customer';
+
+/**
+ * PLACEHOLDER DATA — invented commercial figures.
+ *
+ * `totalContractedSpend` and `slaBreakdown` are deliberately NOT stored here:
+ * the mock service derives them from `MOCK_CONTRACTS` so the Value Overview
+ * tile and the Active Service Contracts table can never disagree with each
+ * other. Only figures with no other source live in this table.
+ */
+export type MockValueOverviewSeed = Omit<
+  ValueOverview,
+  'totalContractedSpend' | 'slaBreakdown' | 'slaCoverageModel'
+>;
+
+export const MOCK_VALUE_OVERVIEW: Record<string, MockValueOverviewSeed> = {
   'acc-001': {
     slaSpendPercent: 63,
-    totalContractedSpend: 4_820_000,
     lastUpsellDate: monthsFromNow(-7),
-    lastUpsellDescription: 'Proactive Care uplift across the Leeds estate',
+    lastUpsellDescription: 'Tech Care Critical uplift across the Leeds estate',
     previous48MonthHardwareSpend: 18_400_000,
     predictedNext12MonthHardwareSpend: 5_260_000,
     predictionConfidence: 72,
@@ -199,9 +356,8 @@ export const MOCK_VALUE_OVERVIEW: Record<string, ValueOverview> = {
   },
   'acc-002': {
     slaSpendPercent: 81,
-    totalContractedSpend: 7_140_000,
     lastUpsellDate: monthsFromNow(-2),
-    lastUpsellDescription: 'Datacentre Care extension, two additional sites',
+    lastUpsellDescription: 'Complete Care extension, two additional sites',
     previous48MonthHardwareSpend: 26_950_000,
     predictedNext12MonthHardwareSpend: 8_115_000,
     predictionConfidence: 84,
@@ -209,9 +365,8 @@ export const MOCK_VALUE_OVERVIEW: Record<string, ValueOverview> = {
   },
   'acc-003': {
     slaSpendPercent: 38,
-    totalContractedSpend: 11_960_000,
     lastUpsellDate: monthsFromNow(-29),
-    lastUpsellDescription: 'Storage support tier upgrade',
+    lastUpsellDescription: 'Storage support tier upgrade to Tech Care Essential',
     previous48MonthHardwareSpend: 41_300_000,
     predictedNext12MonthHardwareSpend: 9_480_000,
     predictionConfidence: 61,
@@ -220,9 +375,8 @@ export const MOCK_VALUE_OVERVIEW: Record<string, ValueOverview> = {
 };
 
 /** PLACEHOLDER DATA — fallback value overview. */
-export const MOCK_DEFAULT_VALUE_OVERVIEW: ValueOverview = {
+export const MOCK_DEFAULT_VALUE_OVERVIEW: MockValueOverviewSeed = {
   slaSpendPercent: 57,
-  totalContractedSpend: 3_400_000,
   lastUpsellDate: monthsFromNow(-14),
   lastUpsellDescription: 'Support tier uplift',
   previous48MonthHardwareSpend: 12_750_000,
@@ -232,131 +386,11 @@ export const MOCK_DEFAULT_VALUE_OVERVIEW: ValueOverview = {
 };
 
 /**
- * PLACEHOLDER DATA — invented contracts.
- * Renewal dates are spread either side of the 90-day threshold on purpose so
- * the "renewing soon" badge pulse is demonstrable.
- */
-export const MOCK_CONTRACTS: Record<string, ServiceContract[]> = {
-  'acc-001': [
-    {
-      contractId: 'ctr-1001',
-      sla: 'Proactive Care 24x7',
-      value: 1_940_000,
-      currency: 'GBP',
-      cities: ['Leeds', 'Manchester'],
-      renewalDate: daysFromNow(38),
-    },
-    {
-      contractId: 'ctr-1002',
-      sla: 'Foundation Care NBD',
-      value: 620_000,
-      currency: 'GBP',
-      cities: ['Birmingham'],
-      renewalDate: daysFromNow(214),
-    },
-    {
-      contractId: 'ctr-1003',
-      sla: 'Datacentre Care',
-      value: 1_760_000,
-      currency: 'GBP',
-      cities: ['Leeds', 'Glasgow', 'Bristol'],
-      renewalDate: daysFromNow(72),
-    },
-    {
-      contractId: 'ctr-1004',
-      sla: 'Foundation Care 24x7',
-      value: 500_000,
-      currency: 'GBP',
-      cities: ['Cardiff'],
-      renewalDate: daysFromNow(401),
-    },
-  ],
-  'acc-002': [
-    {
-      contractId: 'ctr-2001',
-      sla: 'Datacentre Care',
-      value: 3_100_000,
-      currency: 'GBP',
-      cities: ['London', 'Reading'],
-      renewalDate: daysFromNow(156),
-    },
-    {
-      contractId: 'ctr-2002',
-      sla: 'Proactive Care 24x7',
-      value: 2_240_000,
-      currency: 'GBP',
-      cities: ['Sheffield', 'Nottingham'],
-      renewalDate: daysFromNow(19),
-    },
-    {
-      contractId: 'ctr-2003',
-      sla: 'Foundation Care NBD',
-      value: 890_000,
-      currency: 'GBP',
-      cities: ['Newcastle'],
-      renewalDate: daysFromNow(287),
-    },
-    {
-      contractId: 'ctr-2004',
-      sla: 'Tech Care Essential',
-      value: 910_000,
-      currency: 'GBP',
-      cities: ['London'],
-      renewalDate: daysFromNow(63),
-    },
-  ],
-  'acc-003': [
-    {
-      contractId: 'ctr-3001',
-      sla: 'Datacentre Care',
-      value: 5_420_000,
-      currency: 'GBP',
-      cities: ['Aberdeen', 'Edinburgh'],
-      renewalDate: daysFromNow(88),
-    },
-    {
-      contractId: 'ctr-3002',
-      sla: 'Proactive Care 24x7',
-      value: 3_180_000,
-      currency: 'GBP',
-      cities: ['Glasgow', 'Inverness', 'Dundee'],
-      renewalDate: daysFromNow(342),
-    },
-    {
-      contractId: 'ctr-3003',
-      sla: 'Foundation Care 24x7',
-      value: 2_060_000,
-      currency: 'GBP',
-      cities: ['Aberdeen'],
-      renewalDate: daysFromNow(11),
-    },
-  ],
-};
-
-/** PLACEHOLDER DATA — fallback contract set. */
-export const MOCK_DEFAULT_CONTRACTS: ServiceContract[] = [
-  {
-    contractId: 'ctr-9001',
-    sla: 'Foundation Care NBD',
-    value: 740_000,
-    currency: 'GBP',
-    cities: ['London'],
-    renewalDate: daysFromNow(129),
-  },
-  {
-    contractId: 'ctr-9002',
-    sla: 'Proactive Care 24x7',
-    value: 1_260_000,
-    currency: 'GBP',
-    cities: ['Manchester', 'Liverpool'],
-    renewalDate: daysFromNow(47),
-  },
-];
-
-/**
  * PLACEHOLDER DATA — invented relationship-health dates.
- * acc-001 is seeded with an overdue workshop (>12 months) so the persistent
- * overdue flag is visible without editing anything.
+ *
+ * acc-001 is seeded with an overdue workshop (>12 months) and no executive
+ * sponsor service review, so both the overdue flags and the notification pane
+ * have something real to show without anyone editing anything first.
  */
 export const MOCK_MONITORING: Record<string, AccountMonitoring> = {
   'acc-001': {
@@ -389,6 +423,22 @@ export const MOCK_MONITORING: Record<string, AccountMonitoring> = {
       lastServiceReviewWithSponsor: monthsFromNow(-4),
     },
     lastUpdatedAt: daysFromNow(-9),
+    lastUpdatedBy: 'Sample User',
+  },
+  'acc-003': {
+    accountId: 'acc-003',
+    customerProximity: {
+      lastStakeholderMeeting: monthsFromNow(-3),
+      lastWorkshop: monthsFromNow(-21),
+      lastSpendOrSlaReview: monthsFromNow(-5),
+    },
+    customerCentricity: {
+      lastCustomerVisit: monthsFromNow(-2),
+      lastPerformanceReview: monthsFromNow(-9),
+      lastExecutiveEngagement: monthsFromNow(-14),
+      lastServiceReviewWithSponsor: monthsFromNow(-16),
+    },
+    lastUpdatedAt: monthsFromNow(-2),
     lastUpdatedBy: 'Sample User',
   },
 };

@@ -94,8 +94,12 @@ export const glow = {
     '0 0 0 1px var(--hpe-color-border-warning), 0 0 18px -4px var(--hpe-color-foreground-warning)',
   critical:
     '0 0 0 1px var(--hpe-color-border-critical), 0 0 20px -4px var(--hpe-color-foreground-critical)',
-  primary:
-    '0 0 0 1px var(--hpe-color-border-selected), 0 0 20px -4px var(--hpe-color-foreground-primary)',
+  /**
+   * Brand accent glow. Uses `--saip-accent` (the light HPE Brand green,
+   * #01a982) rather than `foreground-primary`, which is the much darker
+   * #006750 — see the accent note in styles/global.css.
+   */
+  primary: '0 0 0 1px var(--saip-accent), 0 0 20px -4px var(--saip-accent)',
   /** Soft neutral lift used on card hover, so hover reads as depth not colour. */
   neutral: '0 0 24px -6px var(--hpe-color-border-strong)',
 } as const;

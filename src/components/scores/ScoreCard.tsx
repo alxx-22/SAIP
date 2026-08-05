@@ -76,29 +76,43 @@ export function ScoreCard({ score, index }: { score: Score; index: number }) {
         gap="small"
         fill="vertical"
         // The card is a figure, not an interactive control — no tabindex.
+        /*
+          NOT `overflow: hidden`. Clipping the card squared off the gauge's
+          drop-shadow glow into a visible box. The sweep gets its own clipped
+          layer below instead, so it stays inside the card while the glow is
+          free to bleed past the edge.
+        */
         style={{
           position: 'relative',
-          overflow: 'hidden',
           boxShadow: hovered && !reduced ? glow[status.glow] : undefined,
           transition: `box-shadow ${duration.standard}s, border-color ${duration.standard}s`,
         }}
       >
-        {/* One-shot light sweep as the card arrives. */}
+        {/* One-shot light sweep as the card arrives, clipped to the card. */}
         {sweepProps && (
-          <motion.span
-            {...sweepProps}
+          <span
             aria-hidden
             style={{
               position: 'absolute',
-              top: 0,
-              bottom: 0,
-              width: '55%',
+              inset: 0,
+              overflow: 'hidden',
+              borderRadius: 'var(--hpe-radius-medium)',
               pointerEvents: 'none',
-              background:
-                'linear-gradient(100deg, transparent, var(--hpe-color-background-contrast), transparent)',
-              opacity: 0.55,
             }}
-          />
+          >
+            <motion.span
+              {...sweepProps}
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                width: '55%',
+                background:
+                  'linear-gradient(100deg, transparent, var(--hpe-color-background-contrast), transparent)',
+                opacity: 0.55,
+              }}
+            />
+          </span>
         )}
 
         <Box direction="row" justify="between" align="start" gap="xsmall">
@@ -192,17 +206,17 @@ function Gauge({
       <motion.svg
         width={GAUGE_SIZE}
         height={GAUGE_SIZE}
-        // Idle breathing for "needs attention" scores only. The gauge scales
-        // very slightly with the fade so the pulse reads as a heartbeat rather
-        // than a flicker.
+        // "Needs attention" is a smooth fade in / fade out pulse — no scaling,
+        // no flash. Symmetric easing over a long cycle so it breathes rather
+        // than blinks.
         animate={
           needsAttention && !reduced
-            ? { opacity: [1, 0.62, 1], scale: [1, 1.035, 1] }
-            : { scale: hovered && !reduced ? 1.04 : 1 }
+            ? { opacity: [1, 0.45, 1] }
+            : { opacity: 1, scale: hovered && !reduced ? 1.04 : 1 }
         }
         transition={
           needsAttention && !reduced
-            ? { duration: 2.6, ease: easing.inOut, repeat: Infinity }
+            ? { duration: 3, ease: 'easeInOut', repeat: Infinity, repeatType: 'loop' }
             : spring.snappy
         }
         style={{ transform: 'rotate(-90deg)' }}
@@ -279,18 +293,19 @@ function StatusPill({ status, reduced }: { status: ScoreStatus; reduced: boolean
 
   return (
     <motion.div
-      // Attention pills pulse their glow; the others carry a static one.
-      animate={
-        pulsing
-          ? { boxShadow: ['0 0 0 0 transparent', glow.critical, '0 0 0 0 transparent'] }
-          : { boxShadow: glow[meta.glow] }
-      }
+      // Attention pills fade in and out in step with the gauge; the others
+      // carry a static glow.
+      animate={pulsing ? { opacity: [1, 0.45, 1] } : { opacity: 1 }}
       transition={
         pulsing
-          ? { duration: 2.6, ease: easing.inOut, repeat: Infinity }
+          ? { duration: 3, ease: 'easeInOut', repeat: Infinity, repeatType: 'loop' }
           : { duration: duration.standard }
       }
-      style={{ borderRadius: 'var(--hpe-radius-xsmall)', alignSelf: 'flex-start' }}
+      style={{
+        boxShadow: glow[meta.glow],
+        borderRadius: 'var(--hpe-radius-xsmall)',
+        alignSelf: 'flex-start',
+      }}
     >
       <Box
         pad={{ horizontal: 'small', vertical: '2px' }}

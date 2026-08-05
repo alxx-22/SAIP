@@ -118,9 +118,25 @@ export function DatePicker({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        whileHover={reduced ? undefined : { y: -1, boxShadow: glow.neutral }}
+        /*
+          No `y` on hover. Shifting the trigger made it sit a pixel out of
+          line with the fields above and below it, so the form looked
+          misaligned the moment the pointer crossed it. Hover is communicated
+          by border and glow, which don't move anything.
+        */
+        whileHover={reduced ? undefined : { boxShadow: glow.neutral }}
         whileTap={reduced ? undefined : { scale: 0.995 }}
         transition={{ duration: duration.fast, ease: easing.out }}
+        /*
+          Deliberately borderless and transparent.
+
+          The surrounding Grommet <FormField> already draws the border that
+          every other input in the form sits inside. Drawing a second one here
+          produced a doubled edge that read as a permanent focus ring — the
+          date field looked selected even when it wasn't. Matching the other
+          fields means owning no chrome of our own; the open state is signalled
+          with a glow instead, which sits on top rather than adding an edge.
+        */
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -131,17 +147,18 @@ export function DatePicker({
           fontSize: '1rem',
           textAlign: 'left',
           cursor: 'pointer',
-          padding: '10px 12px',
-          borderRadius: 'var(--hpe-radius-small)',
-          background: 'var(--hpe-color-background-front)',
+          // Matches Grommet's own input padding so the row height lines up.
+          padding: '11px 11px',
+          borderRadius: 'var(--hpe-radius-xsmall)',
+          border: 'none',
+          background: invalid
+            ? 'var(--hpe-color-background-critical)'
+            : 'transparent',
           color: value
             ? 'var(--hpe-color-text-strong)'
             : 'var(--hpe-color-text-placeholder)',
-          border: `1px solid var(--hpe-color-border-${
-            invalid ? 'critical' : open ? 'selected' : 'default'
-          })`,
           boxShadow: open ? glow.primary : 'none',
-          transition: `border-color ${duration.fast}s, box-shadow ${duration.fast}s`,
+          transition: `box-shadow ${duration.fast}s, background-color ${duration.fast}s`,
         }}
       >
         <span>{value ? formatDate(value) : placeholder}</span>

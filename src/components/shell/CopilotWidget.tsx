@@ -99,8 +99,8 @@ export function CopilotWidget() {
             style={{ transformOrigin: 'bottom right', marginBottom: 12 }}
           >
             <Box
-              width="380px"
-              height="520px"
+              width="440px"
+              height="620px"
               round="medium"
               background="background-front"
               border={{ color: 'border-weak' }}
@@ -139,22 +139,20 @@ function PanelHeader({ onClose, reduced }: { onClose: () => void; reduced: boole
       pad={{ horizontal: 'small', vertical: 'xsmall' }}
       flex={false}
       /*
-        green-700, not the brand green used on the launcher.
-        White on the brand green (#01a982) measures 3.00:1 — fine for an icon
-        (WCAG 1.4.11 needs 3:1) but short of the 4.5:1 that small text needs.
-        green-700 (#068667) gives 4.55:1, so the header text is actually
-        readable. The launcher keeps the brighter brand green because it
-        carries an icon, not prose.
+        The light accent green, matching the launcher and the rest of the app.
+        Text on it is `--saip-on-accent` (dark) rather than white: white on
+        #01a982 measures 3.00:1, which passes for an icon (WCAG 1.4.11) but not
+        for text (1.4.3 wants 4.5:1). Dark text gets 4.57:1.
       */
-      style={{ background: 'var(--hpe-color-background-primary-strong)' }}
+      style={{ background: 'var(--saip-accent)' }}
     >
       <Box gap="1px">
-        <Text size="small" weight={600} style={{ color: '#ffffff' }}>
+        <Text size="small" weight={600} style={{ color: 'var(--saip-on-accent)' }}>
           SAIP Assistant
         </Text>
         {/* Placeholder disclosure lives in the chrome so it can't be scrolled
             away from — nobody should mistake this for a working assistant. */}
-        <Text size="xsmall" style={{ color: '#ffffff', opacity: 0.85 }}>
+        <Text size="xsmall" style={{ color: 'var(--saip-on-accent)', opacity: 0.8 }}>
           Placeholder — not connected to Copilot Studio
         </Text>
       </Box>
@@ -173,7 +171,7 @@ function PanelHeader({ onClose, reduced }: { onClose: () => void; reduced: boole
           padding: 4,
         }}
       >
-        <Close size="small" color="#ffffff" />
+        <Close size="small" color="var(--saip-on-accent)" />
       </motion.button>
     </Box>
   );
@@ -264,10 +262,8 @@ function Bubble({
         style={{
           // green-700 for the same contrast reason as the header — these
           // bubbles carry body text at 14px, which needs 4.5:1.
-          background: isUser
-            ? 'var(--hpe-color-background-primary-strong)'
-            : 'var(--hpe-color-background-front)',
-          color: isUser ? '#ffffff' : 'var(--hpe-color-text-default)',
+          background: isUser ? 'var(--saip-accent)' : 'var(--hpe-color-background-front)',
+          color: isUser ? 'var(--saip-on-accent)' : 'var(--hpe-color-text-default)',
           border: isUser ? 'none' : '1px solid var(--hpe-color-border-weak)',
           // The squared-off corner points at whoever is speaking.
           borderRadius: 'var(--hpe-radius-medium)',
@@ -325,7 +321,7 @@ function TypingIndicator({ reduced }: { reduced: boolean }) {
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: 'var(--hpe-color-decorative-brand)',
+              background: 'var(--saip-accent)',
             }}
           />
         ))}
@@ -448,11 +444,11 @@ function Composer({
             border: 'none',
             cursor: canSend ? 'pointer' : 'default',
             background: canSend
-              ? 'var(--hpe-color-decorative-brand)'
+              ? 'var(--saip-accent)'
               : 'var(--hpe-color-background-disabled)',
           }}
         >
-          <Send size="small" color={canSend ? '#ffffff' : 'icon-disabled'} />
+          <Send size="small" color={canSend ? 'var(--saip-on-accent)' : 'icon-disabled'} />
         </motion.button>
       </Box>
     </Box>
@@ -509,37 +505,18 @@ function CopilotLauncher({
         justifyContent: 'center',
       }}
     >
-      {/* Two offset halos give the pulse depth rather than one flat ring. */}
-      {idle &&
-        [0, 1].map((i) => (
-          <motion.span
-            key={i}
-            aria-hidden
-            animate={{ opacity: [0.45, 0, 0.45], scale: [1, 1.55, 1] }}
-            transition={{
-              duration: 2.8,
-              ease: easing.inOut,
-              repeat: Infinity,
-              delay: i * 1.4,
-            }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: '50%',
-              border: '2px solid var(--hpe-color-decorative-brand)',
-              pointerEvents: 'none',
-            }}
-          />
-        ))}
-
-      {/* The visible disc — this is what floats, scales and glows. */}
+      {/*
+        Everything visible lives inside this one bobbing wrapper — the ring and
+        the disc together. They used to be siblings, so only the disc bobbed and
+        the ring drifted out of centre against it. Keyed to the same transform,
+        they now move as one object.
+      */}
       <motion.span
         initial={reduced ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.4 }}
         animate={{
           opacity: 1,
           scale: hovered && !reduced ? 1.12 : 1,
           y: idle && !hovered ? [0, -4, 0] : 0,
-          boxShadow: hovered && !reduced ? glow.primary : 'var(--hpe-shadow-medium)',
         }}
         transition={
           reduced
@@ -547,7 +524,6 @@ function CopilotLauncher({
             : {
                 opacity: { duration: duration.standard, delay: 0.55 },
                 scale: spring.bouncy,
-                boxShadow: { duration: duration.fast },
                 // The float pauses on hover, so the disc settles under the
                 // cursor instead of drifting while you're looking at it.
                 y:
@@ -559,24 +535,60 @@ function CopilotLauncher({
         style={{
           position: 'absolute',
           inset: 0,
-          borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           pointerEvents: 'none',
-          // HPE Brand green (#01a982) rather than the darker primary-strong.
-          background: 'var(--hpe-color-decorative-brand)',
         }}
       >
+        {/* A single ring that expands outward and fades. */}
+        {idle && (
+          <motion.span
+            aria-hidden
+            animate={{ opacity: [0.5, 0], scale: [1, 1.75] }}
+            transition={{
+              duration: 2.4,
+              ease: 'easeOut',
+              repeat: Infinity,
+              repeatDelay: 0.5,
+            }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border: '2px solid var(--saip-accent)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+
+        {/* The disc itself. */}
         <motion.span
-          animate={reduced ? undefined : { rotate: open ? 90 : 0 }}
-          transition={spring.snappy}
-          style={{ display: 'flex' }}
+          animate={{
+            boxShadow: hovered && !reduced ? glow.primary : 'var(--hpe-shadow-medium)',
+          }}
+          transition={{ duration: duration.fast }}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            // The light HPE Brand green, not the darker primary-strong.
+            background: 'var(--saip-accent)',
+          }}
         >
-          {/* White, explicitly: the icon-onPrimaryStrong token resolves to
-              near-black (#292d3a) in light mode, which is what made the icon
-              read as black on the green button. */}
-          {open ? <Close color="#ffffff" /> : <Chat color="#ffffff" />}
+          <motion.span
+            animate={reduced ? undefined : { rotate: open ? 90 : 0 }}
+            transition={spring.snappy}
+            style={{ display: 'flex' }}
+          >
+            {/* White, explicitly: the icon-onPrimaryStrong token resolves to
+                near-black (#292d3a) in light mode, which is what made the icon
+                read as black on the green button. */}
+            {open ? <Close color="#ffffff" /> : <Chat color="#ffffff" />}
+          </motion.span>
         </motion.span>
       </motion.span>
     </button>

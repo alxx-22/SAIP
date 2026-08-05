@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Box, Button, Text } from 'grommet';
-import { AddCircle, LinkPrevious } from 'grommet-icons';
+import { useEffect, useState } from 'react';
+import { Box, Text } from 'grommet';
+import { LinkPrevious } from 'grommet-icons';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAccountService } from '@/services';
 import { formatCurrency } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
@@ -14,6 +14,7 @@ import { MeetingHistory } from '@/components/meetings/MeetingHistory';
 import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
+import { LogMeetingButton } from '@/components/common/LogMeetingButton';
 import { directionalPanel, fadeRise, scrollRevealProps } from '@/motion/variants';
 import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
@@ -40,10 +41,53 @@ const RIBBONS: { key: RibbonKey; label: string; heading: string }[] = [
  */
 export function AccountFocusPage() {
   const { accountId = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const service = useAccountService();
   const { reduced } = useAppMotion();
   const { openMeetingLog, savedCount } = useMeetingLog();
-  const [active, setActive] = useState<RibbonKey>('value');
+
+  // Deep link from the notification pane: ?ribbon=monitoring&field=mon-workshop
+  const requestedRibbon = searchParams.get('ribbon') as RibbonKey | null;
+  const requestedField = searchParams.get('field');
+
+  const [active, setActive] = useState<RibbonKey>(
+    requestedRibbon && RIBBONS.some((r) => r.key === requestedRibbon)
+      ? requestedRibbon
+      : 'value',
+  );
+
+  /**
+   * Scroll the deep-linked field into view and flag it once the ribbon has
+   * rendered. Landing the rep on the right page but leaving them to find the
+   * row themselves would waste most of the value of the notification.
+   *
+   * The field is highlighted via a CSS class rather than focus alone, because
+   * focus rings are easy to miss on a long form.
+   */
+  useEffect(() => {
+    if (!requestedField || active !== requestedRibbon) return;
+
+    // The ribbon loads asynchronously; poll briefly for the field to appear.
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      const el = document.getElementById(requestedField);
+      attempts += 1;
+      if (el) {
+        window.clearInterval(timer);
+        el.scrollIntoView({
+          behavior: reduced ? 'auto' : 'smooth',
+          block: 'center',
+        });
+        const field = el.closest('.saip-field') ?? el;
+        field.classList.add('saip-field-flagged');
+        window.setTimeout(() => field.classList.remove('saip-field-flagged'), 3200);
+      } else if (attempts > 40) {
+        window.clearInterval(timer);
+      }
+    }, 100);
+
+    return () => window.clearInterval(timer);
+  }, [requestedField, requestedRibbon, active, reduced, accountId]);
   /**
    * Direction of the last tab change: +1 forward, -1 back. Panels enter from
    * the side you came from, so switching ribbons has a sense of place rather
@@ -112,11 +156,8 @@ export function AccountFocusPage() {
               )}
             </Box>
 
-            <Button
-              primary
-              icon={<AddCircle />}
-              label="Log a meeting"
-              // Account id passed → modal locks the account.
+            {/* Account id passed → modal locks the account. */}
+            <LogMeetingButton
               onClick={() => openMeetingLog(accountId)}
               disabled={!accountId}
             />

@@ -16,6 +16,7 @@ import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
+import { SlaChip } from '@/components/common/ColorChip';
 
 /**
  * Ribbon B — Active Service Contracts (brief §7.3).
@@ -93,13 +94,16 @@ export function ActiveContractsRibbon({ accountId }: { accountId: string }) {
         overflow="hidden"
       >
         <Box overflow={{ horizontal: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
             <caption className="saip-visually-hidden">
-              Active service contracts, showing service level, value, cities covered and
-              renewal date. All values are sample data.
+              Active service contracts, showing contract number, service level, value,
+              cities covered and renewal date. All values are sample data.
             </caption>
             <thead>
               <tr>
+                {/* Contracts are identified by number — every contract has an
+                    SLA, so the SLA alone doesn't distinguish them. */}
+                <HeaderCell>Contract</HeaderCell>
                 <HeaderCell>SLA</HeaderCell>
                 <HeaderCell align="right">Value</HeaderCell>
                 <HeaderCell>City / cities covered</HeaderCell>
@@ -182,10 +186,20 @@ function ContractRow({
         transition: `background-color ${duration.fast}s`,
       }}
     >
-      <td style={cellStyle}>
-        <Text size="small" weight={600} color="text-strong">
-          {contract.sla}
+      <td style={{ ...cellStyle, whiteSpace: 'nowrap' }}>
+        {/* Tabular figures so the 400-prefixed numbers line up as a column. */}
+        <Text
+          size="small"
+          weight={600}
+          color="text-strong"
+          style={{ fontVariantNumeric: 'tabular-nums' }}
+        >
+          {contract.contractId}
         </Text>
+      </td>
+
+      <td style={cellStyle}>
+        <SlaChip sla={contract.sla} />
       </td>
 
       <td style={{ ...cellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>

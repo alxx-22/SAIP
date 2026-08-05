@@ -1,9 +1,9 @@
-import { Box, Button, Text } from 'grommet';
-import { AddCircle } from 'grommet-icons';
+import { Box, Text } from 'grommet';
 import { motion } from 'framer-motion';
 import { useAccountService } from '@/services';
 import { useAsync } from '@/hooks/useAsync';
 import { AccountSelectionPane } from '@/components/accounts/AccountSelectionPane';
+import { LogMeetingButton } from '@/components/common/LogMeetingButton';
 import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
 import {
@@ -51,13 +51,8 @@ export function HomePage() {
               </Text>
             </Box>
 
-            <Button
-              primary
-              icon={<AddCircle />}
-              label="Log a meeting"
-              // No account passed → the modal renders its account picker.
-              onClick={() => openMeetingLog()}
-            />
+            {/* No account passed → the modal renders its account picker. */}
+            <LogMeetingButton onClick={() => openMeetingLog()} />
           </Box>
         </motion.div>
 

@@ -7,6 +7,7 @@ import { staggerContainer, staggerItem } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
+import { TagChip } from '@/components/common/ColorChip';
 
 /**
  * Recent meetings for an account.
@@ -110,17 +111,8 @@ export function MeetingHistory({
               {meeting.tags.length > 0 && (
                 <Box direction="row" gap="4px" wrap margin={{ top: '4px' }}>
                   {meeting.tags.map((tag) => (
-                    <Box
-                      key={tag}
-                      pad={{ horizontal: 'xsmall', vertical: '2px' }}
-                      round="xsmall"
-                      background="background-contrast"
-                      flex={false}
-                      margin={{ bottom: '2px' }}
-                    >
-                      <Text size="xsmall" color="text-default">
-                        {tag}
-                      </Text>
+                    <Box key={tag} flex={false} margin={{ bottom: '2px' }}>
+                      <TagChip tag={tag} />
                     </Box>
                   ))}
                 </Box>

@@ -2,11 +2,12 @@ import type { ReactNode } from 'react';
 import { Box, Text } from 'grommet';
 import { motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
-import { duration, easing, glow, stagger } from '@/motion/tokens';
+import { duration, easing, glow, spring, stagger } from '@/motion/tokens';
 import { staggerContainer, staggerItem } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { IS_USING_PLACEHOLDER_DATA } from '@/services';
 import { CopilotWidget } from './CopilotWidget';
+import { NotificationPane } from './NotificationPane';
 
 /** Top-level navigation. Two entries are placeholders per the brief §6. */
 const NAV_ITEMS: { label: string; to: string; placeholder?: boolean }[] = [
@@ -75,23 +76,33 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Box>
           </Box>
 
-          <motion.nav
-            aria-label="Primary"
-            variants={staggerContainer(reduced, stagger.tight)}
-            initial="hidden"
-            animate="visible"
-            style={{ display: 'flex', gap: 'var(--hpe-spacing-xsmall)' }}
-          >
-            {NAV_ITEMS.map((item) => (
-              <motion.div key={item.to} variants={staggerItem(reduced)}>
-                <NavItem
-                  {...item}
-                  active={location.pathname === item.to}
-                  reduced={reduced}
-                />
-              </motion.div>
-            ))}
-          </motion.nav>
+          <Box direction="row" align="center" gap="small">
+            <motion.nav
+              aria-label="Primary"
+              variants={staggerContainer(reduced, stagger.tight)}
+              initial="hidden"
+              animate="visible"
+              style={{ display: 'flex', gap: 'var(--hpe-spacing-xsmall)' }}
+            >
+              {NAV_ITEMS.map((item) => (
+                <motion.div key={item.to} variants={staggerItem(reduced)}>
+                  <NavItem
+                    {...item}
+                    active={location.pathname === item.to}
+                    reduced={reduced}
+                  />
+                </motion.div>
+              ))}
+            </motion.nav>
+
+            <motion.div
+              initial={reduced ? false : { opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={reduced ? { duration: 0 } : { ...spring.bouncy, delay: 0.25 }}
+            >
+              <NotificationPane />
+            </motion.div>
+          </Box>
         </Box>
       </motion.header>
 

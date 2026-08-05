@@ -376,7 +376,9 @@ function DateField({
   const { reduced } = useAppMotion();
 
   return (
-    <motion.div variants={staggerItem(reduced)}>
+    // `saip-field` is the hook the notification deep-link uses to highlight
+    // the row it sent the user to — see AccountFocusPage.
+    <motion.div variants={staggerItem(reduced)} className="saip-field">
       <Box gap="xxsmall">
       <FormField
         label={
@@ -400,7 +402,6 @@ function DateField({
         }
         htmlFor={id}
         name={id}
-        contentProps={{ border: undefined }}
       >
         <DatePicker id={id} value={value} onChange={onChange} />
       </FormField>

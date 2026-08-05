@@ -6,6 +6,24 @@
  * values are used anywhere in this codebase — see README "Token provenance".
  */
 
+/**
+ * SAIP accent.
+ *
+ * The app standardises on the LIGHT HPE Brand green (#01a982, the token HPE
+ * labels "HPE Brand") in place of the darker greens the theme reaches for by
+ * default — `foreground-primary` is #006750 and `background-primary-strong` is
+ * #068667, both of which read as bottle green next to the assistant.
+ *
+ * `--saip-accent` is the single definition. `--saip-on-accent` is the text
+ * colour that sits on it: white measures only 3.00:1 against #01a982, which
+ * passes for icons (WCAG 1.4.11) but not for text (1.4.3 wants 4.5:1), so text
+ * on the accent is dark — that lands at 4.57:1.
+ */
+:root {
+  --saip-accent: var(--hpe-color-decorative-brand);
+  --saip-on-accent: var(--hpe-base-color-grey-1000);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -132,6 +150,33 @@ select:focus {
   box-shadow:
     0 0 0 1px var(--hpe-color-border-selected),
     0 0 20px -4px var(--hpe-color-foreground-primary);
+}
+
+/**
+ * Field highlighted by a notification deep-link.
+ *
+ * Applied for a few seconds after arriving from the notification pane, then
+ * removed. It fades rather than flashes, and the ring is drawn with
+ * `box-shadow` so it doesn't shift the form's layout.
+ */
+.saip-field {
+  border-radius: var(--hpe-radius-small);
+  transition:
+    box-shadow 300ms ease-out,
+    background-color 300ms ease-out;
+}
+
+.saip-field-flagged {
+  background-color: var(--hpe-color-background-warning);
+  box-shadow:
+    0 0 0 2px var(--hpe-color-border-warning),
+    0 0 22px -6px var(--hpe-color-foreground-warning);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saip-field {
+    transition: none;
+  }
 }
 
 /* Skeleton shimmer — used while the service layer is resolving. */

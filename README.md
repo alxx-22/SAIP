@@ -120,7 +120,10 @@ Values were read out of the **published packages** (`hpe-design-tokens@2.2.3`,
 | 5 | **12-month monitoring cadence.** | Same — the brief's example (*"no workshop in 12 months"*). Drives both the derived workshop flag and the overdue flags. | `src/services/derive.ts` (`MONITORING_OVERDUE_MONTHS`) |
 | 6 | **Light mode only.** | `color.dark.css` ships in the token package but SAIP has not decided whether it supports dark mode. | `src/main.tsx` — swap the colour CSS import to enable. |
 | 7 | **`en-GB` locale and GBP formatting.** | Mock accounts are all UK & Ireland. Real data will need locale/currency per account. | `src/services/derive.ts` |
-| 8 | **Glow treatments are composed, not tokenised.** | HPE publishes `--hpe-shadow-*` but nothing for coloured glow. Each glow is a `box-shadow` built **from the semantic colour tokens** (`--hpe-color-foreground-ok`, `-warning`, `-critical`, `-primary`), so a glow can't drift off-palette — but the blur radii and spreads are chosen, not sourced. | `src/motion/tokens.ts` (`glow`, `svgGlow`) |
+| 8 | **Glow treatments are composed, not tokenised.** | HPE publishes `--hpe-shadow-*` but nothing for coloured glow. Each glow is a `box-shadow` built **from the semantic colour tokens** (`--hpe-color-foreground-ok`, `-warning`, `-critical`, and the accent), so a glow can't drift off-palette — but the blur radii and spreads are chosen, not sourced. | `src/motion/tokens.ts` (`glow`, `svgGlow`) |
+| 9 | **SLA coverage model (`customer` vs `location`).** | Read from the brief as: some customers hold one contract covering every site, others hold a contract per site. It changes what the SLA spend breakdown counts — contracts or locations. **Confirm the rule and which accounts fall into which model.** | `src/services/types.ts` (`SlaCoverageModel`), `mockData.ts` (`MOCK_COVERAGE_MODEL`) |
+| 10 | **SLA tier and meeting tag colours.** | Drawn from HPE's base ramps and ordered so the palette carries meaning (SLA rises green → blue → orange → red with criticality). The *mapping* is a design choice, not an HPE standard. | `src/services/types.ts` (`SLA_TIER_COLORS`, `MEETING_TAG_COLORS`) |
+| 11 | **Notification rules.** | Only two rules are implemented — overdue workshop and overdue/missing executive sponsor review — because those are the two the brief named. The full rule set needs defining. | `mockAccountService.ts` (`buildNotifications`) |
 
 ---
 
@@ -138,7 +141,8 @@ this list once the Dataverse/Fabric source is wired up.
 | 4 | Overview (homepage) | Portfolio scores, statuses, period deltas, explainer copy | `MOCK_PORTFOLIO_SCORES` |
 | 5 | Scores (Account Focus) | Per-account score overrides + fallback set | `MOCK_ACCOUNT_SCORES`, `MOCK_DEFAULT_ACCOUNT_SCORES` |
 | 6 | Ribbon A — Value Overview | SLA spend %, total contracted spend, last upsell date + description, 48-month hardware spend, 12-month prediction, model confidence | `MOCK_VALUE_OVERVIEW`, `MOCK_DEFAULT_VALUE_OVERVIEW` |
-| 7 | Ribbon B — Active Service Contracts | Contract IDs, SLA tier names, values, cities, renewal dates | `MOCK_CONTRACTS`, `MOCK_DEFAULT_CONTRACTS` |
+| 7 | Ribbon B — Active Service Contracts | Contract numbers (real 400-prefixed 10-digit *shape*, invented numbers), SLA tiers, values, cities, renewal dates | `MOCK_CONTRACTS`, `MOCK_DEFAULT_CONTRACTS` |
+| 7b | Notification pane | Derived from the invented monitoring dates — real rules, fake inputs | `mockAccountService.ts` → `buildNotifications` |
 | 8 | Ribbon C — Account Monitoring | Seeded relationship-health dates + audit trail | `MOCK_MONITORING` |
 | 9 | Ribbon C — two field **names** | `lastExecutiveEngagement`, `lastServiceReviewWithSponsor` — names **not confirmed**, rendered with a visible "Field name TBC" chip | `services/types.ts`, `components/focus/AccountMonitoringRibbon.tsx` |
 | 10 | Recent Meetings | 3 seeded meeting logs | `MOCK_MEETINGS` |
@@ -161,13 +165,58 @@ reduced-motion fallback cannot be forgotten in a new component.
 | Type | Behaviour |
 | --- | --- |
 | Entrance | Staggered reveals throughout — nav items, score cards, account rows, metric tiles, contract rows, form fields, modal fields. Gauges fill from zero while figures count up; the header slides down and the brand mark draws itself in; a one-shot light sweep crosses score cards and metric tiles as they land. |
-| Scroll | Content below the fold reveals as it is reached (`scrollRevealProps`) rather than having already played — the account list, the account-level scores, and each Account Monitoring section. |
+| Scroll | Content below the fold reveals as it is reached (`scrollRevealProps`) rather than having already played — the account list, the account-level scores, and each Account Monitoring section. **`ScrollToTop` is load-bearing here:** without a scroll reset on navigation you arrive at the next page already scrolled past its header, with the sections above still at `opacity: 0` because their viewport trigger never fired. The page reads as blank. |
+| Opening | A brand-centred intro plays once per tab; see "Opening animation" below. |
 | Route | Pages cross-fade with directional travel via `AnimatePresence mode="wait"`, so navigation reads as movement rather than a redraw. |
 | Tabs | Ribbon panels enter from the side you came from; the active underline is a shared `layoutId` element that slides between tabs and carries a brand glow. |
 | Exit | Modal, calendar popover, Copilot panel and tab panels all animate out. Nothing disappears abruptly. |
 | Idle | Skeleton shimmer while loading; slow glow pulse on "needs attention" scores and contracts renewing within 90 days; an ambient halo on the collapsed Copilot launcher. Nothing else moves once settled. |
 | Hover | Every interactive element responds — account rows slide and grow a brand rail, cards and tiles lift into a coloured glow, chips and tabs lift, the launcher bounces — all on the same `fast` timing. |
 | Feedback | Saves play a spring checkmark with an expanding ring burst; tag chips pop on select; the derived "workshop held in the last 12 months" flag re-pops when an edit flips it, so the consequence of a change is visible. |
+
+### Accent green
+
+The app standardises on the **light HPE Brand green `#01a982`** — the token HPE
+labels "HPE Brand" — in place of the darker greens the theme reaches for by
+default (`foreground-primary` is `#006750`, `background-primary-strong` is
+`#068667`). It's defined once as `--saip-accent` in `styles/global.css`.
+
+Text sitting on the accent uses `--saip-on-accent` (dark), not white: white on
+`#01a982` measures **3.00:1**, which passes WCAG 1.4.11 for icons but not the
+4.5:1 that 1.4.3 requires for text. Dark text reaches **4.57:1**. The one place
+white is used on the accent is the Copilot launcher icon, which is a graphic.
+
+### Notification pane
+
+A bell in the top ribbon with a live count, opening an animated pane.
+
+Notifications are **derived, not stored** — an overdue workshop is a fact about
+the monitoring record, not a row someone has to remember to create and dismiss.
+Update the date and the notification is gone on the next read. There is no
+notification table to keep in sync and nothing to mark as read.
+
+Selecting one deep-links to the exact field that caused it:
+`/account/:id?ribbon=monitoring&field=mon-workshop`. Account Focus reads those
+params, opens the right ribbon, scrolls the field into view and highlights it
+for a few seconds. Landing the rep on the page but leaving them to hunt for the
+row would waste most of the value of having the alert.
+
+Two rules are implemented, both named in the brief: overdue workshop, and
+missing/overdue executive sponsor service review.
+
+### Opening animation
+
+`AppIntro` plays a brand-centred open — the rail draws itself, the SAIP wordmark
+and subtitle rise behind it, then the overlay lifts away.
+
+It plays **once per browser tab** (`sessionStorage`), not on every route change,
+which would be exhausting for someone in this all day. Under reduced motion it
+never mounts — there is nothing to it but motion.
+
+Components whose own entrance would otherwise play *underneath* the overlay
+schedule around it via `introWillPlay()` — that's why the "Log a meeting" button
+waits before extending. Without it the plus rolled out behind the intro and was
+never actually seen.
 
 ### Glow
 

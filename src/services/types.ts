@@ -54,6 +54,13 @@ export interface ValueOverview {
   slaSpendPercent: number;
   /** Total spend the SLA percentage is calculated against. */
   totalContractedSpend: number;
+  /**
+   * Whether this account is contracted once at customer level or per location.
+   * Drives how the SLA spend breakdown is labelled and counted.
+   */
+  slaCoverageModel: SlaCoverageModel;
+  /** SLA spend split by tier, largest first. */
+  slaBreakdown: SlaSpendSlice[];
   /** Last purchase date under the "Expand" motion. Null if never upsold. */
   lastUpsellDate: IsoDate | null;
   /** What that upsell was, for tooltip context. */
@@ -67,16 +74,94 @@ export interface ValueOverview {
   currency: string;
 }
 
+/**
+ * Service level tiers. Every contract carries exactly one.
+ */
+export type SlaTier =
+  | 'Complete Care'
+  | 'Tech Care Basic'
+  | 'Tech Care Essential'
+  | 'Tech Care Critical';
+
+export const SLA_TIERS: SlaTier[] = [
+  'Complete Care',
+  'Tech Care Basic',
+  'Tech Care Essential',
+  'Tech Care Critical',
+];
+
+/**
+ * Colour coding for SLA tiers.
+ *
+ * Ordered by service level so the palette itself carries the hierarchy:
+ * Complete Care (the fullest wrap) is the brand green, then Tech Care rises
+ * blue → orange → red as criticality increases. All drawn from HPE's base
+ * ramps; the tier name is always shown alongside, so colour is never the only
+ * signal.
+ */
+export const SLA_TIER_COLORS: Record<
+  SlaTier,
+  { background: string; border: string; text: string }
+> = {
+  'Complete Care': {
+    background: 'var(--hpe-base-color-green-100)',
+    border: 'var(--hpe-base-color-green-600)',
+    text: 'var(--hpe-base-color-green-1000)',
+  },
+  'Tech Care Basic': {
+    background: 'var(--hpe-base-color-blue-50)',
+    border: 'var(--hpe-base-color-blue-500)',
+    text: 'var(--hpe-base-color-blue-900)',
+  },
+  'Tech Care Essential': {
+    background: 'var(--hpe-base-color-orange-50)',
+    border: 'var(--hpe-base-color-orange-600)',
+    text: 'var(--hpe-base-color-orange-1000)',
+  },
+  'Tech Care Critical': {
+    background: 'var(--hpe-base-color-red-50)',
+    border: 'var(--hpe-base-color-red-600)',
+    text: 'var(--hpe-base-color-red-1000)',
+  },
+};
+
+/**
+ * How an account's SLA coverage is structured.
+ *
+ * ASSUMPTION — confirm with the account team. Read from the brief as: some
+ * customers hold one contract covering every location ("customer level"),
+ * others hold a separate contract per site ("per location"). The Value Overview
+ * breaks SLA spend down accordingly, so the rep sees the split the way their
+ * customer actually buys it.
+ */
+export type SlaCoverageModel = 'customer' | 'location';
+
 /** Ribbon B — one active service contract. */
 export interface ServiceContract {
+  /**
+   * Contract number: 10 digits beginning 400, e.g. "4001234567".
+   * This is the identifier the table shows — contracts are referred to by
+   * number, not by SLA, because every contract has an SLA.
+   */
   contractId: string;
-  /** Service level tier / name, e.g. "Proactive Care 24x7". */
-  sla: string;
+  /** Service level tier. Every contract has one. */
+  sla: SlaTier;
   value: number;
   currency: string;
   /** Cities covered by this contract. */
   cities: string[];
   renewalDate: IsoDate;
+}
+
+/** One row of the SLA spend breakdown. */
+export interface SlaSpendSlice {
+  sla: SlaTier;
+  /** Spend attributed to this tier. */
+  value: number;
+  /** Share of total contracted spend, 0–100. */
+  percent: number;
+  /** Contract count (coverage model "customer") or site count ("location"). */
+  count: number;
 }
 
 /**
@@ -151,6 +236,47 @@ export const MEETING_TAGS: MeetingTag[] = [
   'Leadership Introduction',
 ];
 
+/**
+ * Colour coding for meeting tags.
+ *
+ * Each tag maps to a semantic HPE colour family rather than an arbitrary hue,
+ * so the palette stays inside the design system. Grouped by what the tag means
+ * commercially: green for revenue motions, blue for governance/review,
+ * purple for relationship building.
+ *
+ * Colour is never the only signal — the tag's own label is always shown.
+ */
+export const MEETING_TAG_COLORS: Record<
+  MeetingTag,
+  { background: string; border: string; text: string }
+> = {
+  Workshop: {
+    background: 'var(--hpe-base-color-purple-100)',
+    border: 'var(--hpe-base-color-purple-700)',
+    text: 'var(--hpe-base-color-purple-900)',
+  },
+  Upsell: {
+    background: 'var(--hpe-base-color-green-100)',
+    border: 'var(--hpe-base-color-green-600)',
+    text: 'var(--hpe-base-color-green-1000)',
+  },
+  'SLA Review': {
+    background: 'var(--hpe-base-color-blue-50)',
+    border: 'var(--hpe-base-color-blue-500)',
+    text: 'var(--hpe-base-color-blue-900)',
+  },
+  'Spend Review': {
+    background: 'var(--hpe-base-color-orange-50)',
+    border: 'var(--hpe-base-color-orange-600)',
+    text: 'var(--hpe-base-color-orange-1000)',
+  },
+  'Leadership Introduction': {
+    background: 'var(--hpe-base-color-red-50)',
+    border: 'var(--hpe-base-color-red-600)',
+    text: 'var(--hpe-base-color-red-1000)',
+  },
+};
+
 /** Payload written when a rep logs a meeting. */
 export interface MeetingLogDraft {
   accountId: string;
@@ -166,6 +292,31 @@ export interface MeetingLog extends MeetingLogDraft {
   meetingId: string;
   loggedAt: string;
   loggedBy: string;
+}
+
+/** Severity of a notification. Drives colour and ordering. */
+export type NotificationSeverity = 'critical' | 'warning' | 'info';
+
+/**
+ * An actionable item surfaced in the top-ribbon notification pane.
+ *
+ * Notifications are DERIVED from account data rather than stored — an overdue
+ * workshop is a fact about the monitoring record, not a separate row someone
+ * has to remember to create and dismiss. That means they self-clear the moment
+ * the underlying date is updated.
+ */
+export interface AppNotification {
+  id: string;
+  severity: NotificationSeverity;
+  title: string;
+  detail: string;
+  accountId: string;
+  accountName: string;
+  /**
+   * Where clicking takes the user: the ribbon to open and the field to focus
+   * on Account Focus. `fieldId` matches the DOM id of the form control.
+   */
+  target: { ribbon: 'monitoring'; fieldId: string };
 }
 
 /** The signed-in salesperson. Power Pages/Entra ID supplies this in production. */
@@ -197,4 +348,6 @@ export interface AccountService {
   saveAccountMonitoring(monitoring: AccountMonitoring): Promise<AccountMonitoring>;
   logMeeting(draft: MeetingLogDraft): Promise<MeetingLog>;
   getMeetings(accountId: string): Promise<MeetingLog[]>;
+  /** Derived across every aligned account, most severe first. */
+  getNotifications(): Promise<AppNotification[]>;
 }

@@ -14,18 +14,24 @@ import type {
   Account,
   AccountMonitoring,
   AccountService,
+  AppNotification,
   CurrentUser,
   MeetingLog,
   MeetingLogDraft,
   Score,
   ServiceContract,
+  SlaCoverageModel,
+  SlaSpendSlice,
+  SlaTier,
   ValueOverview,
 } from '../types';
 import {
   MOCK_ACCOUNTS,
   MOCK_ACCOUNT_SCORES,
   MOCK_CONTRACTS,
+  MOCK_COVERAGE_MODEL,
   MOCK_CURRENT_USER,
+  MOCK_DEFAULT_COVERAGE_MODEL,
   MOCK_DEFAULT_ACCOUNT_SCORES,
   MOCK_DEFAULT_CONTRACTS,
   MOCK_DEFAULT_VALUE_OVERVIEW,
@@ -35,12 +41,47 @@ import {
   MOCK_VALUE_OVERVIEW,
   emptyMonitoring,
 } from './mockData';
+import { MONITORING_OVERDUE_MONTHS, formatRelative, isOverdue } from '../derive';
 
 /** Simulated network latency, in ms. */
 const LATENCY = { fast: 220, normal: 420, write: 640 };
 
 function delay<T>(value: T, ms: number): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+}
+
+/**
+ * Groups contracts into an SLA spend breakdown, largest tier first.
+ *
+ * `count` means different things by coverage model, which is the point of the
+ * distinction: for a customer-level account it counts CONTRACTS, because one
+ * contract can span many sites; for a per-location account it counts SITES,
+ * because that is how the customer buys and how the rep thinks about it.
+ */
+function buildSlaBreakdown(
+  contracts: ServiceContract[],
+  coverage: SlaCoverageModel,
+  total: number,
+): SlaSpendSlice[] {
+  const byTier = new Map<SlaTier, { value: number; count: number }>();
+
+  for (const contract of contracts) {
+    const existing = byTier.get(contract.sla) ?? { value: 0, count: 0 };
+    byTier.set(contract.sla, {
+      value: existing.value + contract.value,
+      count:
+        existing.count + (coverage === 'location' ? contract.cities.length : 1),
+    });
+  }
+
+  return [...byTier.entries()]
+    .map(([sla, { value, count }]) => ({
+      sla,
+      value,
+      count,
+      percent: total > 0 ? (value / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.value - a.value);
 }
 
 /**
@@ -76,8 +117,19 @@ export const mockAccountService: AccountService = {
   },
 
   async getValueOverview(accountId: string): Promise<ValueOverview> {
-    const overview = MOCK_VALUE_OVERVIEW[accountId] ?? MOCK_DEFAULT_VALUE_OVERVIEW;
-    return delay({ ...overview }, LATENCY.normal);
+    const seed = MOCK_VALUE_OVERVIEW[accountId] ?? MOCK_DEFAULT_VALUE_OVERVIEW;
+    const contracts = MOCK_CONTRACTS[accountId] ?? MOCK_DEFAULT_CONTRACTS;
+    const coverage = MOCK_COVERAGE_MODEL[accountId] ?? MOCK_DEFAULT_COVERAGE_MODEL;
+
+    // Derived from the contracts rather than stored, so the Value Overview and
+    // the contracts table can never disagree about the same money.
+    const totalContractedSpend = contracts.reduce((sum, c) => sum + c.value, 0);
+    const slaBreakdown = buildSlaBreakdown(contracts, coverage, totalContractedSpend);
+
+    return delay(
+      { ...seed, totalContractedSpend, slaCoverageModel: coverage, slaBreakdown },
+      LATENCY.normal,
+    );
   },
 
   async getServiceContracts(accountId: string): Promise<ServiceContract[]> {
@@ -125,4 +177,68 @@ export const mockAccountService: AccountService = {
       .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
     return delay(meetings, LATENCY.normal);
   },
+
+  async getNotifications(): Promise<AppNotification[]> {
+    return delay(buildNotifications(), LATENCY.normal);
+  },
 };
+
+/**
+ * Derives the notification list from current monitoring records.
+ *
+ * Nothing is stored: a notification exists because a date is overdue, so saving
+ * a new date makes it disappear on the next read. That's the behaviour a rep
+ * expects — clear the work, clear the alert — and it means there is no separate
+ * notification table to keep in sync.
+ *
+ * Two rules are seeded, per the brief: an overdue workshop, and a missing or
+ * overdue executive sponsor service review.
+ */
+function buildNotifications(): AppNotification[] {
+  const notifications: AppNotification[] = [];
+
+  for (const account of MOCK_ACCOUNTS) {
+    const record = writtenMonitoring.get(account.accountId);
+    if (!record) continue;
+
+    const workshop = record.customerProximity.lastWorkshop;
+    if (isOverdue(workshop)) {
+      notifications.push({
+        id: `${account.accountId}-workshop`,
+        severity: workshop ? 'warning' : 'critical',
+        title: workshop ? 'Workshop overdue' : 'No workshop recorded',
+        detail: workshop
+          ? `Last workshop was ${formatRelative(workshop).toLowerCase()} — past the ${MONITORING_OVERDUE_MONTHS}-month cadence.`
+          : `No workshop has ever been recorded for this account.`,
+        accountId: account.accountId,
+        accountName: account.accountName,
+        target: { ribbon: 'monitoring', fieldId: 'mon-workshop' },
+      });
+    }
+
+    const sponsorReview = record.customerCentricity.lastServiceReviewWithSponsor;
+    if (isOverdue(sponsorReview)) {
+      notifications.push({
+        id: `${account.accountId}-sponsor-review`,
+        severity: sponsorReview ? 'warning' : 'critical',
+        title: sponsorReview
+          ? 'Executive sponsor review overdue'
+          : 'No executive sponsor review recorded',
+        detail: sponsorReview
+          ? `Last service review with the executive sponsor was ${formatRelative(sponsorReview).toLowerCase()}.`
+          : 'No service review with the executive sponsor has been recorded.',
+        accountId: account.accountId,
+        accountName: account.accountName,
+        target: { ribbon: 'monitoring', fieldId: 'mon-sponsor-review' },
+      });
+    }
+  }
+
+  // Critical first, then warning, then info.
+  const order: Record<AppNotification['severity'], number> = {
+    critical: 0,
+    warning: 1,
+    info: 2,
+  };
+  return notifications.sort((a, b) => order[a.severity] - order[b.severity]);
+}

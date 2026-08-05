@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { pageTransition } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { AppShell } from '@/components/shell/AppShell';
+import { AppIntro } from '@/components/shell/AppIntro';
+import { ScrollToTop } from '@/components/shell/ScrollToTop';
 import { MeetingLogProvider } from '@/components/meetings/MeetingLogProvider';
 import { HomePage } from '@/pages/HomePage';
 import { AccountFocusPage } from '@/pages/AccountFocusPage';
@@ -24,6 +26,10 @@ export default function App() {
 
   return (
     <MeetingLogProvider>
+      <AppIntro />
+      {/* Resets scroll on navigation — without it, scroll-triggered reveals
+          leave the top of the next page invisible and it reads as blank. */}
+      <ScrollToTop />
       <AppShell>
         {/*
           Route-level transition. `mode="wait"` lets the outgoing page finish

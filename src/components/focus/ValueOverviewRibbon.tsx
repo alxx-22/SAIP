@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Box, Text, Tip } from 'grommet';
 import { motion } from 'framer-motion';
-import { useAccountService, type ValueOverview } from '@/services';
+import { SLA_TIER_COLORS, useAccountService, type ValueOverview } from '@/services';
 import { formatCurrency, formatCurrencyCompact, formatDate, formatRelative } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -10,6 +10,7 @@ import { duration, easing, glow, stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
+import { SlaChip } from '@/components/common/ColorChip';
 
 /**
  * Ribbon A — Value Overview (brief §7.3).
@@ -152,7 +153,7 @@ function SlaSpendTile({ data, reduced }: { data: ValueOverview; reduced: boolean
           style={{
             height: '100%',
             borderRadius: 'var(--hpe-radius-full)',
-            background: 'var(--hpe-color-foreground-primary)',
+            background: 'var(--saip-accent)',
             boxShadow: glow.primary,
           }}
         />
@@ -162,7 +163,92 @@ function SlaSpendTile({ data, reduced }: { data: ValueOverview; reduced: boolean
         of {formatCurrencyCompact(data.totalContractedSpend, data.currency)} across all
         active contracts
       </Text>
+
+      <SlaBreakdown data={data} reduced={reduced} />
     </TileShell>
+  );
+}
+
+/**
+ * Splits SLA spend by tier.
+ *
+ * The unit changes with the account's coverage model, which is the whole point
+ * of the distinction: a customer-level account is counted BY CONTRACT (one
+ * contract can cover many sites), a per-location account is counted BY SITE
+ * (the customer buys a contract per location). The heading states which is in
+ * force so the numbers can't be misread.
+ *
+ * ASSUMPTION — see README. Confirm the coverage-model rule with the account
+ * team before release.
+ */
+function SlaBreakdown({ data, reduced }: { data: ValueOverview; reduced: boolean }) {
+  const byLocation = data.slaCoverageModel === 'location';
+
+  return (
+    <Box
+      gap="xsmall"
+      margin={{ top: 'xsmall' }}
+      pad={{ top: 'xsmall' }}
+      border={{ side: 'top', color: 'border-weak' }}
+    >
+      <Text size="xsmall" weight={600} color="text-strong">
+        By SLA · {byLocation ? 'contracted per location' : 'contracted at customer level'}
+      </Text>
+
+      <motion.div
+        variants={staggerContainer(reduced, stagger.tight)}
+        initial="hidden"
+        animate="visible"
+        style={{ display: 'grid', gap: 6 }}
+      >
+        {data.slaBreakdown.map((slice) => (
+          <motion.div key={slice.sla} variants={staggerItem(reduced)}>
+            <Box gap="2px">
+              <Box direction="row" align="center" justify="between" gap="xsmall">
+                <SlaChip sla={slice.sla} />
+                <Text
+                  size="xsmall"
+                  color="text-default"
+                  style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+                >
+                  {formatCurrencyCompact(slice.value, data.currency)} ·{' '}
+                  {Math.round(slice.percent)}%
+                </Text>
+              </Box>
+
+              <Box
+                height="4px"
+                round="full"
+                background="background-contrast"
+                overflow="hidden"
+                flex={false}
+                aria-hidden
+              >
+                <motion.div
+                  initial={{ width: reduced ? `${slice.percent}%` : '0%' }}
+                  animate={{ width: `${slice.percent}%` }}
+                  transition={
+                    reduced
+                      ? { duration: 0 }
+                      : { duration: duration.entrance * 1.8, ease: easing.out }
+                  }
+                  style={{
+                    height: '100%',
+                    borderRadius: 'var(--hpe-radius-full)',
+                    background: SLA_TIER_COLORS[slice.sla].border,
+                  }}
+                />
+              </Box>
+
+              <Text size="xsmall" color="text-weak">
+                {slice.count} {byLocation ? 'location' : 'contract'}
+                {slice.count === 1 ? '' : 's'}
+              </Text>
+            </Box>
+          </motion.div>
+        ))}
+      </motion.div>
+    </Box>
   );
 }
 
@@ -258,7 +344,7 @@ function TileShell({
       whileHover={reduced ? undefined : { y: -5, scale: 1.015 }}
       whileTap={reduced ? undefined : { scale: 0.995 }}
       transition={{ duration: duration.fast, ease: easing.out }}
-      style={{ flex: '1 1 220px', minWidth: 220, display: 'flex' }}
+      style={{ flex: '1 1 240px', minWidth: 240, display: 'flex' }}
     >
       <Tip
         content={
