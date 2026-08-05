@@ -36,6 +36,36 @@ export const INTRO_DURATION_S =
   LETTERS.length * FLICKER_STEP + 0.45 + HOLD_S + LETTERS.length * FLICKER_STEP + 0.35;
 
 /**
+ * Session storage access, guarded.
+ *
+ * `sessionStorage` is not always readable. A sandboxed iframe without
+ * `allow-same-origin`, Safari's strict tracking protection, and Firefox with
+ * third-party storage blocked all THROW a SecurityError on access rather than
+ * returning null. Unguarded, that exception escapes during render and takes the
+ * whole app down to a blank page — which is a spectacular failure mode for a
+ * cosmetic "have we shown the intro yet?" flag.
+ *
+ * Both helpers fail soft: if storage is unavailable the intro simply plays
+ * every time, which is harmless.
+ */
+function readSeen(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return window.sessionStorage.getItem(SEEN_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function markSeen(): void {
+  try {
+    window.sessionStorage?.setItem(SEEN_KEY, 'true');
+  } catch {
+    // Storage unavailable — nothing to do, the intro just replays.
+  }
+}
+
+/**
  * Whether the intro will play on this mount.
  *
  * Other components use this to schedule their own entrance for *after* the
@@ -43,7 +73,7 @@ export const INTRO_DURATION_S =
  */
 export function introWillPlay(): boolean {
   if (typeof window === 'undefined') return false;
-  return sessionStorage.getItem(SEEN_KEY) !== 'true';
+  return !readSeen();
 }
 
 export function AppIntro() {
@@ -54,7 +84,7 @@ export function AppIntro() {
   useEffect(() => {
     if (!visible) return;
     if (reduced) {
-      sessionStorage.setItem(SEEN_KEY, 'true');
+      markSeen();
       setVisible(false);
       return;
     }
@@ -65,7 +95,7 @@ export function AppIntro() {
 
     const toOut = window.setTimeout(() => setPhase('out'), outAt);
     const toDone = window.setTimeout(() => {
-      sessionStorage.setItem(SEEN_KEY, 'true');
+      markSeen();
       setVisible(false);
     }, doneAt);
 
