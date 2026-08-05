@@ -7,8 +7,8 @@ import type { Account } from '@/services';
 import { useAccountService } from '@/services';
 import { formatCurrencyCompact, formatRelative } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
-import { scrollRevealProps, staggerContainer, staggerItem } from '@/motion/variants';
-import { duration, easing, glow, spring, travel } from '@/motion/tokens';
+import { staggerContainer, staggerItem } from '@/motion/variants';
+import { duration, easing, glow, spring } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -105,15 +105,8 @@ export function AccountSelectionPane() {
           animate="visible"
           style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}
         >
-          {filtered.map((account, i) => (
-            <motion.li
-              key={account.accountId}
-              // Rows past the first screenful reveal on scroll instead of
-              // having already played before they are reached.
-              {...(i < 5
-                ? { variants: staggerItem(reduced) }
-                : scrollRevealProps(reduced, travel.medium))}
-            >
+          {filtered.map((account) => (
+            <motion.li key={account.accountId} variants={staggerItem(reduced)}>
               <AccountRow
                 account={account}
                 reduced={reduced}

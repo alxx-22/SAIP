@@ -165,14 +165,39 @@ reduced-motion fallback cannot be forgotten in a new component.
 | Type | Behaviour |
 | --- | --- |
 | Entrance | Staggered reveals throughout — nav items, score cards, account rows, metric tiles, contract rows, form fields, modal fields. Gauges fill from zero while figures count up; the header slides down and the brand mark draws itself in; a one-shot light sweep crosses score cards and metric tiles as they land. |
-| Scroll | Content below the fold reveals as it is reached (`scrollRevealProps`) rather than having already played — the account list, the account-level scores, and each Account Monitoring section. **`ScrollToTop` is load-bearing here:** without a scroll reset on navigation you arrive at the next page already scrolled past its header, with the sections above still at `opacity: 0` because their viewport trigger never fired. The page reads as blank. |
-| Opening | A brand-centred intro plays once per tab; see "Opening animation" below. |
-| Route | Pages cross-fade with directional travel via `AnimatePresence mode="wait"`, so navigation reads as movement rather than a redraw. |
+| Opening | The SAIP wordmark flickers on and off across the middle of the screen; see "Opening animation" below. |
+| Route | Pages animate **in** on a key change. There is deliberately no route *exit* animation — see "Two things not to reintroduce". |
 | Tabs | Ribbon panels enter from the side you came from; the active underline is a shared `layoutId` element that slides between tabs and carries a brand glow. |
 | Exit | Modal, calendar popover, Copilot panel and tab panels all animate out. Nothing disappears abruptly. |
 | Idle | Skeleton shimmer while loading; slow glow pulse on "needs attention" scores and contracts renewing within 90 days; an ambient halo on the collapsed Copilot launcher. Nothing else moves once settled. |
 | Hover | Every interactive element responds — account rows slide and grow a brand rail, cards and tiles lift into a coloured glow, chips and tabs lift, the launcher bounces — all on the same `fast` timing. |
 | Feedback | Saves play a spring checkmark with an expanding ring burst; tag chips pop on select; the derived "workshop held in the last 12 months" flag re-pops when an edit flips it, so the consequence of a change is visible. |
+
+### Two things not to reintroduce
+
+Both of these caused the same user-visible symptom — **a blank page** — and both
+looked completely fine in casual testing. They're recorded here because each is
+a natural thing to add back.
+
+**1. `AnimatePresence mode="wait"` around the routes.** It holds the incoming
+page until the outgoing one finishes exiting. Navigate again before that exit
+completes — faster than ~260ms, i.e. ordinary clicking — and the presence state
+stalls: the old page is gone, the new one hasn't been allowed to mount, and
+`<main>` is empty. Routes now use a plain keyed `motion.div` with no exit, so
+the next page always mounts immediately. Modals, popovers and the assistant
+panel keep their exit animations, because nothing is waiting to replace them.
+
+**2. `whileInView` + `viewport={{ once: true }}` for section entrances.** The
+element starts at `opacity: 0` and only becomes visible if an
+IntersectionObserver callback fires. Anything that stops that happening — a
+restored scroll position, a different scrolling ancestor, an iframe whose
+viewport isn't what the observer measures against — leaves real content
+permanently invisible. `revealOnMount` in `motion/variants.ts` gives the same
+movement with no such failure mode. For a portal whose entire job is showing
+account data, "sometimes blank" is far worse than "everything arrives at once".
+
+`ScrollToTop` remains, because carrying the previous page's scroll offset into
+the next route is wrong regardless.
 
 ### Accent green
 
@@ -206,17 +231,24 @@ missing/overdue executive sponsor service review.
 
 ### Opening animation
 
-`AppIntro` plays a brand-centred open — the rail draws itself, the SAIP wordmark
-and subtitle rise behind it, then the overlay lifts away.
+`AppIntro` flickers the SAIP wordmark on across the middle of the screen, holds,
+then flickers it off — both sweeps travelling left to right. The **"i" is
+lower-case and set in the accent green**, so the mark carries the brand colour
+without needing a separate device.
+
+The flicker is an opacity keyframe sequence with uneven steps and a couple of
+stutters — like a tube light striking — rather than a fade. The `times` array on
+each letter is what keeps the stutters sharp; without it Framer smooths the
+whole thing into a slow pulse.
 
 It plays **once per browser tab** (`sessionStorage`), not on every route change,
 which would be exhausting for someone in this all day. Under reduced motion it
 never mounts — there is nothing to it but motion.
 
 Components whose own entrance would otherwise play *underneath* the overlay
-schedule around it via `introWillPlay()` — that's why the "Log a meeting" button
-waits before extending. Without it the plus rolled out behind the intro and was
-never actually seen.
+schedule around it via `introWillPlay()` / `INTRO_DURATION_S` — that's why the
+"Log a meeting" button waits before extending. Without it the plus rolled out
+behind the intro and was never actually seen.
 
 ### Glow
 

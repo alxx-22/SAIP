@@ -92,10 +92,18 @@ export function NotificationPane({ refreshKey = 0 }: { refreshKey?: number }) {
 
   function openNotification(n: AppNotification) {
     setOpen(false);
-    // The target ribbon and field travel in the URL so the link is shareable
-    // and survives a refresh.
+    /*
+      The target ribbon and field travel in the URL so the link is shareable
+      and survives a refresh.
+
+      `n` (a nonce) is what makes this work when the rep is ALREADY on the
+      target page. Without it the URL is identical to the current one, React
+      Router treats the navigation as a no-op, nothing re-renders, and the
+      notification appears to do nothing — which is exactly how "the
+      notification navigation stops working after a while" presented.
+    */
     navigate(
-      `/account/${n.accountId}?ribbon=${n.target.ribbon}&field=${n.target.fieldId}`,
+      `/account/${n.accountId}?ribbon=${n.target.ribbon}&field=${n.target.fieldId}&n=${Date.now()}`,
     );
   }
 

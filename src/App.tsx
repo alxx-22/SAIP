@@ -1,5 +1,5 @@
 import { Route, Routes, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { pageTransition } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { AppShell } from '@/components/shell/AppShell';
@@ -32,20 +32,29 @@ export default function App() {
       <ScrollToTop />
       <AppShell>
         {/*
-          Route-level transition. `mode="wait"` lets the outgoing page finish
-          leaving before the next arrives, so the two never overlap mid-scroll.
-          Keying on `pathname` (not the full location) means the same page with
-          different search params doesn't re-animate.
+          Route-level entrance — deliberately WITHOUT AnimatePresence.
+
+          This used to be `<AnimatePresence mode="wait">`, which holds the
+          incoming page until the outgoing one has finished its exit animation.
+          Navigate again before that exit completes and the presence state
+          stalls: the old page is gone, the new one has not been allowed to
+          mount, and the user is looking at an empty <main>. That is the blank
+          page — it needed navigation faster than the ~260ms exit to show up,
+          which is entirely normal clicking.
+
+          A keyed motion.div with no exit cannot get into that state: the new
+          route mounts immediately and animates in. Route exits are the one
+          animation worth losing here. Modals, popovers and the assistant
+          panel keep theirs, because those unmount without a replacement
+          waiting behind them.
         */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            variants={pageTransition(reduced)}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
-            <Routes location={location}>
+        <motion.div
+          key={location.pathname}
+          variants={pageTransition(reduced)}
+          initial="hidden"
+          animate="visible"
+        >
+          <Routes location={location}>
           <Route path="/" element={<HomePage />} />
           <Route path="/account/:accountId" element={<AccountFocusPage />} />
           <Route
@@ -75,9 +84,8 @@ export default function App() {
               />
             }
           />
-            </Routes>
-          </motion.div>
-        </AnimatePresence>
+          </Routes>
+        </motion.div>
       </AppShell>
     </MeetingLogProvider>
   );

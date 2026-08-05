@@ -12,7 +12,7 @@ import {
 } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
 import { staggerContainer, staggerItem } from '@/motion/variants';
-import { duration, easing, glow } from '@/motion/tokens';
+import { duration, easing } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -228,18 +228,35 @@ function ContractRow({
       </td>
 
       <td style={{ ...cellStyle, whiteSpace: 'nowrap' }}>
-        <Box direction="row" align="center" gap="xsmall">
-          <Text size="small" color="text-default">
+        {/*
+          Date on top, countdown underneath as quiet supporting text rather
+          than a coloured pill jammed alongside it. The old inline badge fought
+          the date for attention and made the column look cluttered.
+        */}
+        <Box gap="3px">
+          <Text
+            size="small"
+            color="text-default"
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
             {formatDate(contract.renewalDate)}
           </Text>
           {expired ? (
-            <RenewalBadge tone="critical" label="Expired" reduced={reduced} pulse={false} />
+            <RenewalCountdown tone="critical" label="Expired" reduced={reduced} pulse={false} />
           ) : soon ? (
-            <RenewalBadge
+            <RenewalCountdown
               tone="warning"
-              label={days === 0 ? 'Renews today' : `${days} days`}
+              label={
+                days === 0
+                  ? 'Renews today'
+                  : days === 1
+                    ? 'Renews tomorrow'
+                    : `Renews in ${days} days`
+              }
               reduced={reduced}
               pulse
+              // How far through the 90-day window this contract is.
+              progress={1 - days / RENEWAL_SOON_DAYS}
             />
           ) : null}
         </Box>
@@ -253,49 +270,84 @@ function ContractRow({
  * Pulses only for the "renewing soon" case, and never under reduced motion —
  * where the colour and the label alone carry the same meaning.
  */
-function RenewalBadge({
+/**
+ * Renewal countdown shown under the date.
+ *
+ * A small status dot, the countdown in words, and a thin track showing how far
+ * through the 90-day window the contract is — so "renewing soon" is a shape you
+ * can scan down the column, not a block of colour to read one row at a time.
+ *
+ * Only the dot pulses. Pulsing the whole element made a table full of text
+ * shimmer; a single 6px dot flags the row without disturbing anything around
+ * it.
+ */
+function RenewalCountdown({
   tone,
   label,
   reduced,
   pulse,
+  progress,
 }: {
   tone: 'warning' | 'critical';
   label: string;
   reduced: boolean;
   pulse: boolean;
+  /** 0–1 through the renewal window. Omitted for expired contracts. */
+  progress?: number;
 }) {
   const animate = pulse && !reduced;
+  const color =
+    tone === 'warning'
+      ? 'var(--hpe-color-foreground-warning)'
+      : 'var(--hpe-color-foreground-critical)';
 
   return (
-    <motion.div
-      // Renewing-soon badges pulse their glow and breathe very slightly.
-      // Expired badges carry a static critical glow — an expiry isn't urgent
-      // in the same "act now" sense, it's already happened.
-      animate={
-        animate
-          ? {
-              boxShadow: ['0 0 0 0 transparent', glow.warning, '0 0 0 0 transparent'],
-              scale: [1, 1.05, 1],
-            }
-          : { boxShadow: glow[tone] }
-      }
-      transition={
-        animate
-          ? { duration: 2.6, ease: easing.inOut, repeat: Infinity }
-          : { duration: duration.standard }
-      }
-      style={{ borderRadius: 'var(--hpe-radius-xsmall)' }}
-    >
-      <Box
-        pad={{ horizontal: 'xsmall', vertical: '2px' }}
-        round="xsmall"
-        background={tone === 'warning' ? 'background-warning' : 'background-critical'}
-        flex={false}
-      >
-        <Text size="xsmall" weight={600} color="text-strong">
+    <Box gap="3px" flex={false}>
+      <Box direction="row" align="center" gap="6px">
+        <motion.span
+          aria-hidden
+          animate={animate ? { opacity: [1, 0.3, 1] } : { opacity: 1 }}
+          transition={
+            animate
+              ? { duration: 2.4, ease: 'easeInOut', repeat: Infinity, repeatType: 'loop' }
+              : { duration: duration.standard }
+          }
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: color,
+            boxShadow: `0 0 8px ${color}`,
+            flex: '0 0 auto',
+          }}
+        />
+        <Text size="xsmall" weight={600} style={{ color }}>
           {label}
         </Text>
       </Box>
-    </motion.div>
+
+      {typeof progress === 'number' && (
+        <Box
+          width="104px"
+          height="3px"
+          round="full"
+          background="background-contrast"
+          overflow="hidden"
+          flex={false}
+          aria-hidden
+        >
+          <motion.div
+            initial={{ width: reduced ? `${progress * 100}%` : '0%' }}
+            animate={{ width: `${Math.min(Math.max(progress, 0), 1) * 100}%` }}
+            transition={
+              reduced
+                ? { duration: 0 }
+                : { duration: duration.entrance * 1.6, ease: easing.out }
+            }
+            style={{ height: '100%', background: color, borderRadius: 'inherit' }}
+          />
+        </Box>
+      )}
+    </Box>
   );
 }

@@ -328,8 +328,7 @@ function Section({
     <motion.div
       variants={staggerContainer(reduced, stagger.tight)}
       initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.12 }}
+      animate="visible"
     >
       <Box
         pad="medium"

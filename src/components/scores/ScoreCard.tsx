@@ -199,7 +199,14 @@ function Gauge({
   return (
     <Box
       flex={false}
-      style={{ position: 'relative', width: GAUGE_SIZE, height: GAUGE_SIZE }}
+      // `overflow: visible` here too — the glow needs to escape this box as
+      // well as the SVG inside it.
+      style={{
+        position: 'relative',
+        width: GAUGE_SIZE,
+        height: GAUGE_SIZE,
+        overflow: 'visible',
+      }}
       role="img"
       aria-label={`${label}: ${Math.round(value)} out of 100`}
     >
@@ -219,7 +226,17 @@ function Gauge({
             ? { duration: 3, ease: 'easeInOut', repeat: Infinity, repeatType: 'loop' }
             : spring.snappy
         }
-        style={{ transform: 'rotate(-90deg)' }}
+        /*
+          `overflow: visible` is the actual fix for the clipped glow.
+
+          An SVG clips its own contents to its viewport by default. The value
+          arc's stroke sits exactly on that boundary (radius + half the stroke
+          width == GAUGE_SIZE / 2), so the `drop-shadow` glow was being cut off
+          square at the SVG's edge — which is why the halo rendered as a box
+          around a circle. Removing the card's `overflow: hidden` wasn't enough
+          because the clipping was happening one level further in.
+        */
+        style={{ transform: 'rotate(-90deg)', overflow: 'visible' }}
         aria-hidden
       >
         {/* Track */}

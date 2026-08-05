@@ -176,21 +176,36 @@ export function confirmPop(reduced: boolean): Variants {
  * ────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Section entrance driven by scroll position rather than mount.
+ * Section entrance, played on mount.
  *
- * Spread onto a `motion` element: `{...scrollReveal(reduced)}`. Content below
- * the fold animates as it is reached instead of having already played by the
- * time the user scrolls to it.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * DELIBERATELY NOT SCROLL-TRIGGERED. Do not reintroduce `whileInView` here.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * An earlier version used `whileInView` + `viewport={{ once: true }}` so
+ * below-the-fold sections animated as they were reached. It looked good and was
+ * a reliability trap: the element starts at `opacity: 0` and only becomes
+ * visible if an IntersectionObserver callback fires. Anything that stops that
+ * happening — a restored scroll position, a different scrolling ancestor, being
+ * embedded in an iframe whose viewport isn't what the observer measures against
+ * — leaves real content permanently invisible. For a portal whose whole job is
+ * showing account data, "sometimes the page is blank" is far worse than
+ * "everything animates in at once".
+ *
+ * Mount-based entrance keeps the movement and removes the failure mode.
+ * `delay` staggers sections so the page still arrives in readable order.
  */
-export function scrollRevealProps(reduced: boolean, distance: number = travel.large) {
+export function revealOnMount(
+  reduced: boolean,
+  delay = 0,
+  distance: number = travel.medium,
+) {
   if (reduced) {
     return { initial: false as const, animate: { opacity: 1, y: 0 } };
   }
   return {
     initial: { opacity: 0, y: distance },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true, amount: 0.15, margin: '0px 0px -80px 0px' },
-    transition: { duration: duration.entrance, ease: easing.out },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: duration.entrance, ease: easing.out, delay },
   };
 }
 

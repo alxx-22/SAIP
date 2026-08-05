@@ -15,7 +15,7 @@ import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
 import { LogMeetingButton } from '@/components/common/LogMeetingButton';
-import { directionalPanel, fadeRise, scrollRevealProps } from '@/motion/variants';
+import { directionalPanel, fadeRise, revealOnMount } from '@/motion/variants';
 import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 
@@ -46,9 +46,13 @@ export function AccountFocusPage() {
   const { reduced } = useAppMotion();
   const { openMeetingLog, savedCount } = useMeetingLog();
 
-  // Deep link from the notification pane: ?ribbon=monitoring&field=mon-workshop
+  // Deep link from the notification pane:
+  // ?ribbon=monitoring&field=mon-workshop&n=<nonce>
   const requestedRibbon = searchParams.get('ribbon') as RibbonKey | null;
   const requestedField = searchParams.get('field');
+  // The nonce changes on every notification click, so re-selecting the SAME
+  // notification re-runs this effect instead of being a silent no-op.
+  const requestNonce = searchParams.get('n');
 
   const [active, setActive] = useState<RibbonKey>(
     requestedRibbon && RIBBONS.some((r) => r.key === requestedRibbon)
@@ -56,16 +60,29 @@ export function AccountFocusPage() {
       : 'value',
   );
 
+  // A repeat click may also need to switch back to the target ribbon if the
+  // rep has since moved to another tab.
+  useEffect(() => {
+    if (requestedRibbon && RIBBONS.some((r) => r.key === requestedRibbon)) {
+      setActive(requestedRibbon);
+    }
+  }, [requestedRibbon, requestNonce]);
+
   /**
    * Scroll the deep-linked field into view and flag it once the ribbon has
    * rendered. Landing the rep on the right page but leaving them to find the
    * row themselves would waste most of the value of the notification.
    *
-   * The field is highlighted via a CSS class rather than focus alone, because
-   * focus rings are easy to miss on a long form.
+   * The highlight persists until the rep hovers the field — it marks "this is
+   * the thing you came here for", so it should wait to be acknowledged rather
+   * than time out while they're still reading. On hover it fades out quickly
+   * and gets out of the way.
    */
   useEffect(() => {
     if (!requestedField || active !== requestedRibbon) return;
+
+    let field: Element | null = null;
+    let cleanupHover: (() => void) | undefined;
 
     // The ribbon loads asynchronously; poll briefly for the field to appear.
     let attempts = 0;
@@ -78,16 +95,34 @@ export function AccountFocusPage() {
           behavior: reduced ? 'auto' : 'smooth',
           block: 'center',
         });
-        const field = el.closest('.saip-field') ?? el;
+
+        field = el.closest('.saip-field') ?? el;
+        // Clear any highlight left over from a previous click.
+        document
+          .querySelectorAll('.saip-field-flagged, .saip-field-unflagging')
+          .forEach((n) => n.classList.remove('saip-field-flagged', 'saip-field-unflagging'));
         field.classList.add('saip-field-flagged');
-        window.setTimeout(() => field.classList.remove('saip-field-flagged'), 3200);
+
+        const dismiss = () => {
+          if (!field) return;
+          field.classList.add('saip-field-unflagging');
+          window.setTimeout(() => {
+            field?.classList.remove('saip-field-flagged', 'saip-field-unflagging');
+          }, 260);
+        };
+        field.addEventListener('mouseenter', dismiss, { once: true });
+        cleanupHover = () => field?.removeEventListener('mouseenter', dismiss);
       } else if (attempts > 40) {
         window.clearInterval(timer);
       }
     }, 100);
 
-    return () => window.clearInterval(timer);
-  }, [requestedField, requestedRibbon, active, reduced, accountId]);
+    return () => {
+      window.clearInterval(timer);
+      cleanupHover?.();
+      field?.classList.remove('saip-field-flagged', 'saip-field-unflagging');
+    };
+  }, [requestedField, requestedRibbon, requestNonce, active, reduced, accountId]);
   /**
    * Direction of the last tab change: +1 forward, -1 back. Panels enter from
    * the side you came from, so switching ribbons has a sense of place rather
@@ -166,7 +201,7 @@ export function AccountFocusPage() {
       </motion.div>
 
       {/* Account-level scores, above the ribbons. */}
-      <motion.div {...scrollRevealProps(reduced)}>
+      <motion.div {...revealOnMount(reduced, 0.1)}>
         <ScoresOverview
           accountId={accountId}
           heading="Scores"

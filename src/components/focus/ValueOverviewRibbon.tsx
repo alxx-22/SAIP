@@ -6,7 +6,7 @@ import { formatCurrency, formatCurrencyCompact, formatDate, formatRelative } fro
 import { useAsync } from '@/hooks/useAsync';
 import { useCountUp } from '@/hooks/useCountUp';
 import { staggerContainer, staggerItem, sweep } from '@/motion/variants';
-import { duration, easing, glow, stagger } from '@/motion/tokens';
+import { duration, easing, stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -112,88 +112,43 @@ export function ValueOverviewRibbon({ accountId }: { accountId: string }) {
   );
 }
 
-/** SLA spend as a percentage of total contracted spend, with a filling bar. */
-function SlaSpendTile({ data, reduced }: { data: ValueOverview; reduced: boolean }) {
-  const pct = useCountUp(data.slaSpendPercent);
-
-  return (
-    <TileShell
-      reduced={reduced}
-      tip={`SLA spend is ${data.slaSpendPercent}% of ${formatCurrency(data.totalContractedSpend, data.currency)} total contracted spend across all active contracts.`}
-    >
-      <Text size="small" color="text-weak">
-        SLA spend
-      </Text>
-      <Box direction="row" align="baseline" gap="xxsmall">
-        <Text size="xxlarge" weight={600} color="text-strong">
-          {Math.round(pct)}
-        </Text>
-        <Text size="large" weight={600} color="text-weak">
-          %
-        </Text>
-      </Box>
-
-      {/* Bar fills from zero on entrance. */}
-      <Box
-        height="8px"
-        round="full"
-        background="background-contrast"
-        overflow="hidden"
-        flex={false}
-        aria-hidden
-      >
-        <motion.div
-          initial={{ width: reduced ? `${data.slaSpendPercent}%` : '0%' }}
-          animate={{ width: `${data.slaSpendPercent}%` }}
-          transition={
-            reduced
-              ? { duration: 0 }
-              : { duration: duration.entrance * 2.2, ease: easing.out }
-          }
-          style={{
-            height: '100%',
-            borderRadius: 'var(--hpe-radius-full)',
-            background: 'var(--saip-accent)',
-            boxShadow: glow.primary,
-          }}
-        />
-      </Box>
-
-      <Text size="xsmall" color="text-weak">
-        of {formatCurrencyCompact(data.totalContractedSpend, data.currency)} across all
-        active contracts
-      </Text>
-
-      <SlaBreakdown data={data} reduced={reduced} />
-    </TileShell>
-  );
-}
-
 /**
- * Splits SLA spend by tier.
+ * SLA spend, split by tier.
  *
- * The unit changes with the account's coverage model, which is the whole point
- * of the distinction: a customer-level account is counted BY CONTRACT (one
- * contract can cover many sites), a per-location account is counted BY SITE
- * (the customer buys a contract per location). The heading states which is in
- * force so the numbers can't be misread.
+ * Shows the split only. The old headline — "SLA spend as X% of £Y across all
+ * active contracts" — was removed at the client's request: with every contract
+ * now carrying an SLA, that percentage was close to meaningless, and the useful
+ * question is which tiers the money sits in.
+ *
+ * The unit changes with the account's coverage model, which is the point of the
+ * distinction: a customer-level account is counted BY CONTRACT (one contract
+ * can cover many sites), a per-location account BY SITE (the customer buys a
+ * contract per location). The heading states which is in force so the numbers
+ * can't be misread.
  *
  * ASSUMPTION — see README. Confirm the coverage-model rule with the account
  * team before release.
  */
-function SlaBreakdown({ data, reduced }: { data: ValueOverview; reduced: boolean }) {
+function SlaSpendTile({ data, reduced }: { data: ValueOverview; reduced: boolean }) {
   const byLocation = data.slaCoverageModel === 'location';
 
   return (
-    <Box
-      gap="xsmall"
-      margin={{ top: 'xsmall' }}
-      pad={{ top: 'xsmall' }}
-      border={{ side: 'top', color: 'border-weak' }}
+    <TileShell
+      reduced={reduced}
+      tip={`SLA spend split across ${data.slaBreakdown.length} service tier${
+        data.slaBreakdown.length === 1 ? '' : 's'
+      }, totalling ${formatCurrency(data.totalContractedSpend, data.currency)}. This account is ${
+        byLocation ? 'contracted per location' : 'contracted at customer level'
+      }.`}
     >
-      <Text size="xsmall" weight={600} color="text-strong">
-        By SLA · {byLocation ? 'contracted per location' : 'contracted at customer level'}
-      </Text>
+      <Box gap="2px">
+        <Text size="small" color="text-weak">
+          SLA spend by type
+        </Text>
+        <Text size="xsmall" color="text-weak">
+          {byLocation ? 'Contracted per location' : 'Contracted at customer level'}
+        </Text>
+      </Box>
 
       <motion.div
         variants={staggerContainer(reduced, stagger.tight)}
@@ -248,7 +203,7 @@ function SlaBreakdown({ data, reduced }: { data: ValueOverview; reduced: boolean
           </motion.div>
         ))}
       </motion.div>
-    </Box>
+    </TileShell>
   );
 }
 

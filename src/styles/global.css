@@ -162,19 +162,35 @@ select:focus {
 .saip-field {
   border-radius: var(--hpe-radius-small);
   transition:
-    box-shadow 300ms ease-out,
-    background-color 300ms ease-out;
+    box-shadow 320ms ease-out,
+    background-color 320ms ease-out;
 }
 
+/**
+ * The halo is built entirely from box-shadow spread rather than padding, so it
+ * can extend well beyond the field without nudging the form's layout — the
+ * rows either side stay exactly where they were.
+ */
 .saip-field-flagged {
   background-color: var(--hpe-color-background-warning);
   box-shadow:
-    0 0 0 2px var(--hpe-color-border-warning),
-    0 0 22px -6px var(--hpe-color-foreground-warning);
+    0 0 0 10px var(--hpe-color-background-warning),
+    0 0 0 12px var(--hpe-color-border-warning),
+    0 0 36px 2px var(--hpe-color-foreground-warning);
+}
+
+/** Applied on hover: same properties, much faster, back to nothing. */
+.saip-field-unflagging {
+  transition:
+    box-shadow 240ms ease-in,
+    background-color 240ms ease-in;
+  background-color: transparent;
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .saip-field {
+  .saip-field,
+  .saip-field-unflagging {
     transition: none;
   }
 }

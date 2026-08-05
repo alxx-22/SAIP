@@ -8,7 +8,7 @@ import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
 import {
   fadeRise,
-  scrollRevealProps,
+  revealOnMount,
   staggerContainer,
   staggerItem,
 } from '@/motion/variants';
@@ -63,9 +63,8 @@ export function HomePage() {
           />
         </motion.div>
 
-        {/* The account list usually sits at or below the fold, so it reveals
-            on scroll rather than having already played by the time it's read. */}
-        <motion.div {...scrollRevealProps(reduced)}>
+        {/* Mount-based, not scroll-triggered — see revealOnMount for why. */}
+        <motion.div {...revealOnMount(reduced, 0.12)}>
           <AccountSelectionPane />
         </motion.div>
       </motion.div>
