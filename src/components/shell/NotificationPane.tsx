@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text } from 'grommet';
 import { Notification, CircleAlert, FormNextLink } from 'grommet-icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAccountService, type AppNotification } from '@/services';
 import { useAsync } from '@/hooks/useAsync';
+import { useSettings } from '@/settings/SettingsProvider';
 import { popover, staggerContainer, staggerItem } from '@/motion/variants';
 import { duration, easing, glow, spring, stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
@@ -63,11 +64,28 @@ export function NotificationPane({ refreshKey = 0 }: { refreshKey?: number }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  const { notifications: prefs } = useSettings();
+
   const { data, loading } = useAsync(
-    () => service.getNotifications(),
-    [service, refreshKey, openCount],
+    () => service.getNotifications({ overdueAfterMonths: prefs.overdueAfterMonths }),
+    [service, refreshKey, openCount, prefs.overdueAfterMonths],
   );
-  const count = data?.length ?? 0;
+
+  /**
+   * The user's severity filter, applied here rather than in the service.
+   *
+   * The overdue threshold has to go to the service, because only it can see the
+   * underlying dates. Severity is already on the notification, so filtering it
+   * client-side avoids a round trip and keeps the toggles instant.
+   */
+  const visible = useMemo(() => {
+    if (!prefs.enabled || !data) return [];
+    return data.filter((n) => prefs.severities[n.severity]);
+  }, [data, prefs.enabled, prefs.severities]);
+
+  const count = visible.length;
+  /** Distinguishes "nothing to do" from "you filtered everything out". */
+  const filteredOut = (data?.length ?? 0) > 0 && count === 0 && prefs.enabled;
 
   const close = useCallback((returnFocus = true) => {
     setOpen(false);
@@ -245,22 +263,28 @@ export function NotificationPane({ refreshKey = 0 }: { refreshKey?: number }) {
                 {!loading && count === 0 && (
                   <Box pad="medium" align="center" gap="xxsmall">
                     <Text size="small" color="text-weak">
-                      Nothing needs your attention.
+                      {!prefs.enabled
+                        ? 'Notifications are turned off.'
+                        : filteredOut
+                          ? 'Everything is filtered out.'
+                          : 'Nothing needs your attention.'}
                     </Text>
                     <Text size="xsmall" color="text-weak" textAlign="center">
-                      Overdue workshops and executive sponsor reviews appear here.
+                      {!prefs.enabled || filteredOut
+                        ? 'Change this in Profile & settings.'
+                        : 'Overdue workshops and executive sponsor reviews appear here.'}
                     </Text>
                   </Box>
                 )}
 
-                {!loading && data && count > 0 && (
+                {!loading && count > 0 && (
                   <motion.ul
                     variants={staggerContainer(reduced, stagger.tight)}
                     initial="hidden"
                     animate="visible"
                     style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}
                   >
-                    {data.map((n) => (
+                    {visible.map((n) => (
                       <motion.li key={n.id} variants={staggerItem(reduced)}>
                         <NotificationRow
                           notification={n}

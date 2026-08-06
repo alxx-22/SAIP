@@ -18,6 +18,7 @@ import type {
   CurrentUser,
   MeetingLog,
   MeetingLogDraft,
+  NotificationQuery,
   Score,
   ServiceContract,
   SlaCoverageModel,
@@ -178,8 +179,8 @@ export const mockAccountService: AccountService = {
     return delay(meetings, LATENCY.normal);
   },
 
-  async getNotifications(): Promise<AppNotification[]> {
-    return delay(buildNotifications(), LATENCY.normal);
+  async getNotifications(options?: NotificationQuery): Promise<AppNotification[]> {
+    return delay(buildNotifications(options?.overdueAfterMonths), LATENCY.normal);
   },
 };
 
@@ -194,7 +195,9 @@ export const mockAccountService: AccountService = {
  * Two rules are seeded, per the brief: an overdue workshop, and a missing or
  * overdue executive sponsor service review.
  */
-function buildNotifications(): AppNotification[] {
+function buildNotifications(
+  overdueAfterMonths: number = MONITORING_OVERDUE_MONTHS,
+): AppNotification[] {
   const notifications: AppNotification[] = [];
 
   for (const account of MOCK_ACCOUNTS) {
@@ -202,13 +205,13 @@ function buildNotifications(): AppNotification[] {
     if (!record) continue;
 
     const workshop = record.customerProximity.lastWorkshop;
-    if (isOverdue(workshop)) {
+    if (isOverdue(workshop, overdueAfterMonths)) {
       notifications.push({
         id: `${account.accountId}-workshop`,
         severity: workshop ? 'warning' : 'critical',
         title: workshop ? 'Workshop overdue' : 'No workshop recorded',
         detail: workshop
-          ? `Last workshop was ${formatRelative(workshop).toLowerCase()} — past the ${MONITORING_OVERDUE_MONTHS}-month cadence.`
+          ? `Last workshop was ${formatRelative(workshop).toLowerCase()} — past the ${overdueAfterMonths}-month cadence.`
           : `No workshop has ever been recorded for this account.`,
         accountId: account.accountId,
         accountName: account.accountName,
@@ -217,7 +220,7 @@ function buildNotifications(): AppNotification[] {
     }
 
     const sponsorReview = record.customerCentricity.lastServiceReviewWithSponsor;
-    if (isOverdue(sponsorReview)) {
+    if (isOverdue(sponsorReview, overdueAfterMonths)) {
       notifications.push({
         id: `${account.accountId}-sponsor-review`,
         severity: sponsorReview ? 'warning' : 'critical',

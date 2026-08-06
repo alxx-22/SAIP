@@ -56,6 +56,9 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 | Account Focus — Ribbon B, Active Service Contracts | Built |
 | Account Focus — Ribbon C, Account Monitoring (editable) | Built |
 | Log a Meeting modal (both entry points) | Built |
+| Retractable left navigation | Built |
+| Profile & settings — theme, accent, notification options | Built |
+| Light / dark themes + selectable accent | Built |
 | Copilot Studio widget | Container + launcher only, per brief |
 | Executive View / Business Development | Nav placeholders only, per brief |
 | Entra ID authentication | Deliberately absent — Power Pages handles it |
@@ -88,13 +91,14 @@ src/
     scores/            ScoreCard, ScoresOverview
     focus/             the three Account Focus ribbons
     meetings/          MeetingLogModal, MeetingLogProvider, MeetingHistory
-  pages/             HomePage, AccountFocusPage, PlaceholderPage
+  pages/             HomePage, AccountFocusPage, ProfilePage, PlaceholderPage
+  settings/          SettingsProvider (theme + notifications), accent catalogue
 
 scripts/
   sync-powerpages.mjs  copies dist/ into the site tree, with guard rails
 
 powerpages/          ← the Power Pages site tree (pac pages download/upload)
-  web-files/           saip-app.mjs + saip-app.css and their .webfile.yml records
+  web-files/           saip-app.js + saip-app.css and their .webfile.yml records
   web-templates/       SAIP App Host — renders the whole document
   page-templates/      SAIP App — header/footer suppressed
   web-pages/home/      repointed at the SAIP App page template
@@ -399,6 +403,83 @@ hover-revealed to always-visible, so no information is gated behind an animation
 
 ---
 
+## Theming
+
+Light or dark, plus a user-selectable accent that replaces the green throughout.
+All of it is HPE design tokens — no invented colour anywhere.
+
+### Light / dark
+
+HPE ships this as a first-class pair and the app does not reimplement any of it:
+
+| Sheet | Selector |
+| --- | --- |
+| `color.light.css` | `:root, [data-mode=auto], [data-mode=light]` |
+| `color.dark.css` | `[data-mode=dark]`, plus `[data-mode=auto]` inside `prefers-color-scheme: dark` |
+
+Both are imported in `main.tsx` (dark second — order matters). `SettingsProvider`
+writes `data-mode` onto `<html>` and several hundred colour tokens flip. Because
+`auto` is a real value in HPE's selectors, "follow my device" needs no extra code
+and tracks a system theme change live.
+
+Grommet gets the same mode through `themeMode` on `<Grommet>`, resolved to a
+concrete `light` | `dark` — Grommet has no concept of `auto`.
+
+### Accent
+
+`--saip-accent` and `--saip-on-accent` are set on `<html>` by `SettingsProvider`
+and consumed everywhere. **No component names an accent colour directly.**
+
+Each accent in `src/settings/accents.ts` carries **two** values — a saturated mid
+step for light mode and a lifted step for dark — because a colour that reads well
+on white is usually too dark on near-black. `on` is the text/icon colour that sits
+ON the accent, and every pair is annotated with its measured contrast ratio
+against WCAG 1.4.3 (4.5:1).
+
+Do not add an accent without measuring both modes. Several obvious candidates
+fail: plain `blue-500` is 4.49:1 on white and 3.05:1 on ink, so it passes with
+neither foreground.
+
+Status colours — ok / warning / critical — deliberately do **not** follow the
+accent. They mean something, and recolouring them to match a preference would
+make a red gauge stop reading as a problem.
+
+### Where settings live
+
+`localStorage`, under `saip.settings.v1`, validated field by field on read so a
+stale or hand-edited value falls back to its default rather than throwing. None of
+it is business data. When the Dataverse layer lands, the natural home is a
+`saip_userpreference` row keyed on the signed-in contact — `SettingsProvider`
+keeps its shape and only `load`/`persist` change.
+
+---
+
+## Navigation
+
+A retractable left rail: 268px expanded, 64px collapsed as an icon-only rail, with
+the collapsed state persisted. Home / Executive View / Business Development sit at
+the top; **Profile & settings** is pinned to the bottom, separated from the
+destinations.
+
+Primary navigation used to live in the top bar. It moved so Profile had a natural
+home away from the destinations, and so the app can grow past three sections
+without the header running out of room. The top bar now carries only the
+notification bell.
+
+**Profile is a hash route, not a second Power Pages page.** A separate page would
+mean a second document load, a second parse of the bundle, and a visible flash of
+the wrong theme before the settings applied — and it would put the settings
+outside the React tree that consumes them. Note the site also has a Power Pages
+*Profile* page at `/profile`; there is no collision, because this screen is at
+`/#/profile`.
+
+One layout trap worth knowing: Grommet's `flex="grow"` compiles to
+`flex: 1 0 auto` — grow yes, **shrink no**. The content column beside the rail
+needs `flex: 1 1 0` and `min-width: 0`, or the rail's width is added on top of a
+full-width column and the page scrolls horizontally below ~1440px.
+
+---
+
 ## Deploying to Power Pages
 
 ### The loop
@@ -425,7 +506,7 @@ page-templates/SAIP-App                                     ├─> SAIP App
                             adx_webtemplateid ──────────────┐
 web-templates/saip-app-host SAIP App Host                   └─> renders <html>
                               <link href="/saip-app.css">
-                              <script type="module" src="/saip-app.mjs">
+                              <script type="module" src="/saip-app.js">
 web-files/                  the two artifacts + their .webfile.yml records
 ```
 
@@ -444,24 +525,25 @@ Content-hashed filenames would need a **new Dataverse record per build**, so
 sourcemaps. Don't re-enable code splitting without creating web file records for
 every chunk first — `sync-powerpages.mjs` will stop you.
 
-### Why `.mjs` and not `.js`
+### If the upload is rejected for a blocked extension
 
-`js` is on Dataverse's **default blocked-attachments list**, so uploading a `.js`
-web file fails with:
+`js` is on Dataverse's **default blocked-attachments list**. On an environment
+where nobody has changed that, `pac pages upload` aborts with:
 
 > Upload aborted. Your site data contains file(s) with extension(s) .js that are
 > blocked in this environment, so no changes were uploaded.
 
-`.mjs` is not blocked, is semantically correct for an ES module, and works whether
-or not `.js` is unblocked — so it is the default here. The MIME type in
-`saip-app.mjs.webfile.yml` is `text/javascript`, and browsers dispatch on the
-`Content-Type` header rather than the extension, so it loads exactly like `.js`.
+**This environment has `js` unblocked**, which is why the bundle is `saip-app.js`.
+If you ever deploy to an environment that has not, the fix is either to remove
+`js` from the blocked list (Power Platform admin center → Environments → Settings
+→ Privacy + Security), or to rename the artifact to an extension that is not
+blocked — `.mjs` works, since the record's `mimetype` stays `text/javascript` and
+browsers dispatch on the `Content-Type` header rather than the file extension.
 
-To switch back after unblocking `.js` (Power Platform admin center → Environments →
-Settings → Privacy + Security), change `entryFileNames` in `vite.config.ts`, the
-`TRACKED` list in `scripts/sync-powerpages.mjs`, the `adx_name` / `adx_partialurl` /
-`filename` in the manifest, and the `<script src>` in the web template. Keep the
-existing GUIDs so the records are updated rather than duplicated.
+Renaming means changing it in four places: `entryFileNames` in `vite.config.ts`,
+`TRACKED` in `scripts/sync-powerpages.mjs`, `adx_name` / `adx_partialurl` /
+`filename` in the manifest, and the `<script src>` in the web template. **Keep the
+existing GUIDs** so the record is updated rather than duplicated.
 
 ### Never hand-write a `.webfile.yml`
 
@@ -519,8 +601,10 @@ included so the data layer doesn't need a template change to get started.
   CSS. If the site ever enables a Content-Security-Policy it needs `font-src` for
   that host — and `style-src 'unsafe-inline'`, because Grommet uses
   styled-components and injects CSS at runtime. Without it the app renders unstyled.
-- The bundle is ~790 KB raw / ~224 KB gzipped, dominated by Grommet. Well inside the
-  Dataverse attachment limit (it is base64-encoded, so budget ~1.03 MB against it).
+- The bundle is ~817 KB raw / ~230 KB gzipped, dominated by Grommet. The CSS is
+  ~197 KB / ~19 KB gzipped — it carries both the light and dark HPE token sheets.
+  Well inside the Dataverse attachment limit (web files are base64-encoded, so
+  budget ~1.06 MB against it).
 
 ### Scope note
 

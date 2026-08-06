@@ -332,7 +332,7 @@ function RibbonTab({
             bottom: -1,
             height: 2,
             borderRadius: 2,
-            background: 'var(--hpe-color-decorative-brand)',
+            background: 'var(--saip-accent)',
             boxShadow: glow.primary,
           }}
         />

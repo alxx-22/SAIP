@@ -2,13 +2,13 @@ adx_displayorder: 3
 adx_enabletracking: false
 adx_excludefromsearch: true
 adx_hiddenfromsitemap: true
-adx_name: saip-app.mjs
+adx_name: saip-app.js
 adx_parentpageid: ac3dc091-944b-4a9e-bfbf-409a899f2996
-adx_partialurl: saip-app.mjs
+adx_partialurl: saip-app.js
 adx_publishingstateid: 192500a4-ff5f-4fc2-bf53-37ee67d8bf0f
 adx_webfileid: 568f74c5-44d3-4fc8-9168-3a47fe72a4cd
 annotationid: a6ae41bd-81bb-4773-8375-a7c067920e74
-filename: saip-app.mjs
+filename: saip-app.js
 isdocument: true
 mimetype: text/javascript
 objectid: 568f74c5-44d3-4fc8-9168-3a47fe72a4cd

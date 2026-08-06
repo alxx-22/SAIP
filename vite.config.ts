@@ -6,7 +6,7 @@ import { fileURLToPath, URL } from 'node:url';
  * Build config targets Power Pages, not a generic static host.
  *
  * Power Pages serves the app from two `adx_webfile` records whose `adx_partialurl`
- * values are fixed (`saip-app.mjs`, `saip-app.css`). Those records are real
+ * values are fixed (`saip-app.js`, `saip-app.css`). Those records are real
  * Dataverse rows with real GUIDs — see powerpages/web-files/*.webfile.yml. If the
  * emitted filenames changed on every build, every build would need NEW web file
  * records created by hand. So the output names are pinned and content hashing is
@@ -43,8 +43,8 @@ export default defineConfig({
         // files that have no corresponding web file records.
         manualChunks: undefined,
         inlineDynamicImports: true,
-        entryFileNames: 'saip-app.mjs',
-        chunkFileNames: 'saip-app.mjs',
+        entryFileNames: 'saip-app.js',
+        chunkFileNames: 'saip-app.js',
         assetFileNames: 'saip-app.[ext]',
       },
     },

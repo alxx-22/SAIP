@@ -65,10 +65,18 @@ export function heldWithinLastYear(date: IsoDate | null): boolean {
 /**
  * True when a monitoring date is missing or older than the overdue threshold.
  * Drives the soft persistent flag on Account Monitoring fields.
+ *
+ * `months` defaults to the agreed business rule and should be left alone for
+ * anything shown on the Account Monitoring ribbon — that flag is a fact about
+ * the account, not a personal view of it. It is overridable only so a user can
+ * tighten or relax their own NOTIFICATION threshold in Profile & settings.
  */
-export function isOverdue(date: IsoDate | null): boolean {
+export function isOverdue(
+  date: IsoDate | null,
+  months: number = MONITORING_OVERDUE_MONTHS,
+): boolean {
   if (!date) return true;
-  return monthsSince(date) >= MONITORING_OVERDUE_MONTHS;
+  return monthsSince(date) >= months;
 }
 
 /** Currency, no decimals — these are six- and seven-figure commercial values. */

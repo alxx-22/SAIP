@@ -1,194 +1,87 @@
 import type { ReactNode } from 'react';
 import { Box, Text } from 'grommet';
 import { motion } from 'framer-motion';
-import { NavLink, useLocation } from 'react-router-dom';
-import { duration, easing, glow, spring, stagger } from '@/motion/tokens';
-import { staggerContainer, staggerItem } from '@/motion/variants';
+import { duration, easing, spring } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { IS_USING_PLACEHOLDER_DATA } from '@/services';
 import { CopilotWidget } from './CopilotWidget';
 import { NotificationPane } from './NotificationPane';
-
-/** Top-level navigation. Two entries are placeholders per the brief §6. */
-const NAV_ITEMS: { label: string; to: string; placeholder?: boolean }[] = [
-  { label: 'Home', to: '/' },
-  { label: 'Executive View', to: '/executive-view', placeholder: true },
-  { label: 'Business Development', to: '/business-development', placeholder: true },
-];
+import { SideNav } from './SideNav';
 
 /**
- * Persistent app chrome: brand bar, primary nav, sample-data banner and the
- * Copilot Studio slot. Wraps every route.
+ * Persistent app chrome: retractable left navigation, a slim top bar for
+ * notifications, the sample-data banner and the Copilot Studio slot.
  *
- * In Power Pages this chrome would likely be replaced by the site's own header
- * Web Template — it lives in its own component precisely so it can be dropped
- * without touching the pages underneath.
+ * LAYOUT
+ *
+ * A flex row: the nav rail is a real column that occupies width, and the content
+ * column takes the rest. The rail handles its own sticky positioning. Nothing
+ * here is absolutely positioned, so there are no magic offsets to keep in sync
+ * when the rail expands and collapses.
+ *
+ * Primary navigation used to live in the top bar. It moved into the rail so that
+ * Profile could sit at the bottom, away from the destinations, and so the app has
+ * room to grow past three sections without the header running out of width.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { reduced } = useAppMotion();
-  const location = useLocation();
 
   return (
     <Box background="background-back" style={{ minHeight: '100vh' }}>
       {IS_USING_PLACEHOLDER_DATA && <SampleDataBanner reduced={reduced} />}
 
-      <motion.header
-        initial={reduced ? false : { y: -18, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: duration.entrance, ease: easing.out }}
-        style={{ position: 'sticky', top: 0, zIndex: 20 }}
-      >
+      <Box direction="row" align="start">
+        <SideNav />
+
+        {/*
+          `flex: 1 1 0`, spelled out deliberately.
+
+          Grommet's `flex="grow"` compiles to `flex: 1 0 auto` — grow yes, SHRINK
+          NO. With an `auto` basis the column sizes to its content and then
+          refuses to give any of it back, so the rail's width was added on top of
+          a full-viewport column and pushed the page into horizontal scroll at
+          anything under ~1440px.
+
+          Basis 0 makes the column size purely from the space left over after the
+          rail, and `min-width: 0` lets it shrink past the intrinsic width of wide
+          children (the contracts table) instead of forcing the row wider.
+        */}
         <Box
-          direction="row"
-          align="center"
-          justify="between"
-          pad={{ horizontal: 'medium', vertical: 'small' }}
-          background="background-front"
-          border={{ side: 'bottom', color: 'border-weak' }}
-          flex={false}
+          flex={{ grow: 1, shrink: 1 }}
+          style={{ minWidth: 0, flexBasis: 0 }}
         >
-          <Box direction="row" align="center" gap="small">
-            {/* Brand mark — HPE's green as a decorative element, from tokens.
-                Draws itself in vertically as the header lands. */}
-            <motion.div
-              initial={reduced ? false : { scaleY: 0 }}
-              animate={{ scaleY: 1 }}
-              transition={{ duration: duration.entrance, ease: easing.out, delay: 0.12 }}
-              style={{ transformOrigin: 'center' }}
-              aria-hidden
+          <motion.header
+            initial={reduced ? false : { y: -18, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: duration.entrance, ease: easing.out }}
+            style={{ position: 'sticky', top: 0, zIndex: 20 }}
+          >
+            <Box
+              direction="row"
+              align="center"
+              justify="end"
+              pad={{ horizontal: 'medium', vertical: 'small' }}
+              background="background-front"
+              border={{ side: 'bottom', color: 'border-weak' }}
+              flex={false}
             >
-              <Box
-                width="6px"
-                height="28px"
-                round="xsmall"
-                background="decorative-brand"
-                flex={false}
-                style={{ boxShadow: glow.primary }}
-              />
-            </motion.div>
-            <Box>
-              <Text size="large" weight={600} color="text-strong">
-                SAIP
-              </Text>
-              <Text size="xsmall" color="text-weak">
-                Services Account Intelligence Portal
-              </Text>
+              <motion.div
+                initial={reduced ? false : { opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={reduced ? { duration: 0 } : { ...spring.bouncy, delay: 0.25 }}
+              >
+                <NotificationPane />
+              </motion.div>
             </Box>
-          </Box>
+          </motion.header>
 
-          <Box direction="row" align="center" gap="small">
-            <motion.nav
-              aria-label="Primary"
-              variants={staggerContainer(reduced, stagger.tight)}
-              initial="hidden"
-              animate="visible"
-              style={{ display: 'flex', gap: 'var(--hpe-spacing-xsmall)' }}
-            >
-              {NAV_ITEMS.map((item) => (
-                <motion.div key={item.to} variants={staggerItem(reduced)}>
-                  <NavItem
-                    {...item}
-                    active={location.pathname === item.to}
-                    reduced={reduced}
-                  />
-                </motion.div>
-              ))}
-            </motion.nav>
-
-            <motion.div
-              initial={reduced ? false : { opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={reduced ? { duration: 0 } : { ...spring.bouncy, delay: 0.25 }}
-            >
-              <NotificationPane />
-            </motion.div>
-          </Box>
+          {/* Route content scrolls with the document, not in its own container. */}
+          <Box as="main">{children}</Box>
         </Box>
-      </motion.header>
-
-      {/* Route content scrolls with the document, not in its own container. */}
-      <Box as="main">{children}</Box>
+      </Box>
 
       <CopilotWidget />
     </Box>
-  );
-}
-
-/**
- * A nav link with an animated active underline.
- *
- * The underline is a shared `layoutId` element, so moving between routes slides
- * it rather than cross-fading two bars — the kind of continuity that makes the
- * nav feel responsive instead of redrawn.
- */
-function NavItem({
-  label,
-  to,
-  placeholder,
-  active,
-  reduced,
-}: {
-  label: string;
-  to: string;
-  placeholder?: boolean;
-  active: boolean;
-  reduced: boolean;
-}) {
-  return (
-    <NavLink
-      to={to}
-      style={{ textDecoration: 'none', position: 'relative', display: 'block' }}
-      aria-current={active ? 'page' : undefined}
-    >
-      <motion.div
-        whileHover={reduced ? undefined : { y: -1 }}
-        transition={{ duration: duration.fast, ease: easing.out }}
-      >
-        <Box
-          pad={{ horizontal: 'small', vertical: 'xsmall' }}
-          round="xsmall"
-          direction="row"
-          align="center"
-          gap="xsmall"
-          className="saip-nav-item"
-        >
-          <Text
-            size="small"
-            weight={active ? 600 : 400}
-            color={active ? 'text-strong' : 'text-weak'}
-          >
-            {label}
-          </Text>
-          {/* Placeholder routes are labelled in the nav itself so nobody
-              clicks through expecting a built page. */}
-          {placeholder && (
-            <Text size="xsmall" color="text-weak" aria-label="Not yet built">
-              ·
-            </Text>
-          )}
-        </Box>
-        {active && (
-          <motion.div
-            layoutId="saip-nav-underline"
-            transition={
-              reduced
-                ? { duration: 0 }
-                : { duration: duration.standard, ease: easing.inOut }
-            }
-            style={{
-              position: 'absolute',
-              left: 'var(--hpe-spacing-xsmall)',
-              right: 'var(--hpe-spacing-xsmall)',
-              bottom: -2,
-              height: 2,
-              borderRadius: 2,
-              background: 'var(--hpe-color-decorative-brand)',
-              boxShadow: glow.primary,
-            }}
-          />
-        )}
-      </motion.div>
-    </NavLink>
   );
 }
 

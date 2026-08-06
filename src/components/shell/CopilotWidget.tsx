@@ -26,10 +26,10 @@ import {
  * Copilot Studio <iframe> and delete `copilotPlaceholder.ts`. The launcher,
  * panel, open/close animation, focus handling and layout stay as they are.
  *
- * Launcher colour: `--hpe-color-decorative-brand` (#01a982, the HPE Brand
- * green) with a white icon. The default `icon-onPrimaryStrong` token resolves
- * to near-black (#292d3a) in light mode, which is why white is set explicitly
- * here. See README for the contrast measurement.
+ * Launcher colour: `--saip-accent` — the user's chosen accent, HPE Brand green
+ * by default — with `--saip-on-accent` for the icon. Both are set on <html> by
+ * SettingsProvider and flip with the accent and the light/dark mode, so nothing
+ * in this file names a colour directly.
  */
 export function CopilotWidget() {
   const [open, setOpen] = useState(false);
@@ -584,10 +584,16 @@ function CopilotLauncher({
             transition={spring.snappy}
             style={{ display: 'flex' }}
           >
-            {/* White, explicitly: the icon-onPrimaryStrong token resolves to
-                near-black (#292d3a) in light mode, which is what made the icon
-                read as black on the green button. */}
-            {open ? <Close color="#ffffff" /> : <Chat color="#ffffff" />}
+            {/* `--saip-on-accent`, never a fixed colour: the accent is
+                user-selectable, and the readable foreground flips between ink
+                and white depending on which accent and which theme mode is
+                active. Hard-coding white here put a 2.5:1 icon on the amber
+                accent. See src/settings/accents.ts for the measured pairs. */}
+            {open ? (
+              <Close color="var(--saip-on-accent)" />
+            ) : (
+              <Chat color="var(--saip-on-accent)" />
+            )}
           </motion.span>
         </motion.span>
       </motion.span>

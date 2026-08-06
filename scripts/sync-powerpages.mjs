@@ -23,7 +23,7 @@ const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const webFiles = fileURLToPath(new URL('../powerpages/web-files/', import.meta.url));
 
 /** The artifacts that have web file records backing them. */
-const TRACKED = ['saip-app.mjs', 'saip-app.css'];
+const TRACKED = ['saip-app.js', 'saip-app.css'];
 
 /** Emitted by Vite but not deployed — Power Pages supplies its own document. */
 const IGNORED = ['index.html'];

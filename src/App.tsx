@@ -9,6 +9,7 @@ import { MeetingLogProvider } from '@/components/meetings/MeetingLogProvider';
 import { HomePage } from '@/pages/HomePage';
 import { AccountFocusPage } from '@/pages/AccountFocusPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
+import { ProfilePage } from '@/pages/ProfilePage';
 
 /**
  * SAIP routes.
@@ -57,6 +58,9 @@ export default function App() {
           <Routes location={location}>
           <Route path="/" element={<HomePage />} />
           <Route path="/account/:accountId" element={<AccountFocusPage />} />
+          {/* Settings live in the app rather than on a second Power Pages page —
+              see the note at the top of ProfilePage. */}
+          <Route path="/profile" element={<ProfilePage />} />
           <Route
             path="/executive-view"
             element={

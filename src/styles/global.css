@@ -9,19 +9,41 @@
 /**
  * SAIP accent.
  *
- * The app standardises on the LIGHT HPE Brand green (#01a982, the token HPE
- * labels "HPE Brand") in place of the darker greens the theme reaches for by
- * default — `foreground-primary` is #006750 and `background-primary-strong` is
- * #068667, both of which read as bottle green next to the assistant.
+ * These are the FALLBACK values only. `SettingsProvider` overwrites both
+ * properties on <html> at runtime from the user's chosen accent and the
+ * resolved light/dark mode — see src/settings/accents.ts, where every
+ * accent/mode pair carries its measured contrast ratio.
  *
- * `--saip-accent` is the single definition. `--saip-on-accent` is the text
- * colour that sits on it: white measures only 3.00:1 against #01a982, which
- * passes for icons (WCAG 1.4.11) but not for text (1.4.3 wants 4.5:1), so text
- * on the accent is dark — that lands at 4.57:1.
+ * They are declared here so the app is never unstyled: the values below apply
+ * for the first paint, and if the provider ever fails to mount.
+ *
+ * The default is the LIGHT HPE Brand green (#01a982, the token HPE labels
+ * "HPE Brand") rather than the darker greens the theme reaches for by default
+ * — `foreground-primary` is #006750 and `background-primary-strong` is #068667,
+ * both of which read as bottle green next to the assistant.
+ *
+ * `--saip-on-accent` is the text colour that sits ON the accent: white measures
+ * only 3.00:1 against #01a982, which passes for icons (WCAG 1.4.11) but not for
+ * text (1.4.3 wants 4.5:1), so text on the accent is dark — that lands at
+ * 4.57:1.
  */
 :root {
   --saip-accent: var(--hpe-color-decorative-brand);
   --saip-on-accent: var(--hpe-base-color-grey-1000);
+}
+
+/**
+ * Colour-scheme-aware form controls and scrollbars.
+ *
+ * `SettingsProvider` also sets `color-scheme` on the root element, but declaring
+ * it here keeps native UI correct before the provider's first effect runs.
+ */
+:root[data-mode='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-mode='light'] {
+  color-scheme: light;
 }
 
 * {

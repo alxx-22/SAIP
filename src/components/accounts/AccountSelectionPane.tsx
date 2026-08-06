@@ -190,7 +190,7 @@ function AccountRow({
             width: 3,
             borderRadius: 3,
             transformOrigin: 'center',
-            background: 'var(--hpe-color-decorative-brand)',
+            background: 'var(--saip-accent)',
           }}
         />
 

@@ -319,6 +319,15 @@ export interface AppNotification {
   target: { ribbon: 'monitoring'; fieldId: string };
 }
 
+/** Options for {@link AccountService.getNotifications}. */
+export interface NotificationQuery {
+  /**
+   * Months of inactivity before a monitoring field counts as overdue.
+   * Defaults to `MONITORING_OVERDUE_MONTHS` when omitted.
+   */
+  overdueAfterMonths?: number;
+}
+
 /** The signed-in salesperson. Power Pages/Entra ID supplies this in production. */
 export interface CurrentUser {
   userId: string;
@@ -348,6 +357,14 @@ export interface AccountService {
   saveAccountMonitoring(monitoring: AccountMonitoring): Promise<AccountMonitoring>;
   logMeeting(draft: MeetingLogDraft): Promise<MeetingLog>;
   getMeetings(accountId: string): Promise<MeetingLog[]>;
-  /** Derived across every aligned account, most severe first. */
-  getNotifications(): Promise<AppNotification[]>;
+  /**
+   * Derived across every aligned account, most severe first.
+   *
+   * `overdueAfterMonths` lets the caller tighten or relax the cadence used to
+   * decide what counts as overdue, so a user can tune their own alerting in
+   * Profile & settings. Omit it to use the agreed business rule
+   * (`MONITORING_OVERDUE_MONTHS`), which is what the Account Monitoring ribbon
+   * always does.
+   */
+  getNotifications(options?: NotificationQuery): Promise<AppNotification[]>;
 }
