@@ -136,14 +136,29 @@ export function AnimatedModal({
               outline: 'none',
             }}
           >
+            {/*
+              TALL CONTENT MUST SCROLL, NOT SQUASH.
+
+              The panel is capped at `maxHeight: 100%`. This Box is a flex
+              column, so with `overflow: hidden` a form taller than the viewport
+              did not clip — its children SHRANK, because `flex-shrink: 1` is the
+              CSS default for a flex item. Each field's label, hint and input
+              were compressed into the same few pixels and rendered on top of one
+              another. On a phone the New incentive form was unreadable.
+
+              Two changes fix it together, and both are needed:
+                - `overflowY: auto` gives the overflow somewhere to go.
+                - the inner `flex: 0 0 auto` wrapper stops the children being
+                  shrunk in the first place, which `overflow` alone does not.
+            */}
             <Box
               round="medium"
               background="background-front"
               elevation="large"
-              overflow="hidden"
               fill="horizontal"
+              style={{ overflowY: 'auto', overflowX: 'hidden' }}
             >
-              {children}
+              <div style={{ flex: '0 0 auto' }}>{children}</div>
             </Box>
           </motion.div>
         </motion.div>

@@ -1,6 +1,13 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { Box, Text } from 'grommet';
-import { Analytics, Home, Sidebar, Target, UserSettings } from 'grommet-icons';
+import {
+  Analytics,
+  Home,
+  Sidebar,
+  Target,
+  UserAdmin,
+  UserSettings,
+} from 'grommet-icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
 import { duration, easing, glow } from '@/motion/tokens';
@@ -41,8 +48,15 @@ const PRIMARY: NavEntry[] = [
   { label: 'Business Development', to: '/business-development', icon: Target },
 ];
 
-/** Pinned to the bottom, away from the primary destinations. */
+/**
+ * Pinned to the bottom, away from the primary destinations.
+ *
+ * Admin is shown to everyone in the prototype. In production it is gated by an
+ * administrator web role — and the gate that matters is on the Dataverse table
+ * permissions, not on whether this row renders.
+ */
 const SECONDARY: NavEntry[] = [
+  { label: 'Admin', to: '/admin', icon: UserAdmin },
   { label: 'Profile & Settings', to: '/profile', icon: UserSettings },
 ];
 

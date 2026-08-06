@@ -174,6 +174,21 @@ select:focus {
 }
 
 /**
+ * Opts an input out of the focus glow above.
+ *
+ * For an input that fills a styled container — the SAIP.Ai box, where the
+ * surrounding shell already draws a border AND an accent glow on focus — the
+ * rule above added a second ring inside the first. Two concentric rings read as
+ * a rendering bug rather than as focus.
+ *
+ * The container is still responsible for showing focus. Only use this where
+ * something else visibly does.
+ */
+.saip-bare-input:focus {
+  box-shadow: none;
+}
+
+/**
  * Hover glow on the Value Overview tiles.
  *
  * Applied in CSS rather than Framer because the tile is wrapped in Grommet's

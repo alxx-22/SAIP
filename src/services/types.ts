@@ -467,6 +467,141 @@ export interface IncentiveDraft {
   nominatedAccountIds: string[];
 }
 
+/* ─── Admin: configuration held as data ─────────────────────────────────── */
+
+/**
+ * THE POINT OF EVERYTHING IN THIS SECTION
+ *
+ * These types describe configuration that is currently hard-coded in the app —
+ * the Account Monitoring questions, the meeting place and tag lists, the
+ * incentive purposes. Every one of them is a literal in TypeScript today, which
+ * means adding a meeting tag or renaming a question is a code change, a build
+ * and a deploy.
+ *
+ * Modelling them as records instead lets the admin portal change them at
+ * runtime, and it is what makes the eventual SQL/Dataverse tables a
+ * straightforward mapping rather than a rewrite.
+ *
+ * IMPORTANT, AND CURRENTLY TRUE: the app does NOT yet read its questions or
+ * dropdowns from here. The ribbons and modals still use their constants. This
+ * section is the management surface and the shape of the future tables; wiring
+ * the consumers to it is the next step, alongside the SQL build plan.
+ */
+
+/** A portal web role. Maps to `adx_webrole` in Power Pages. */
+export interface WebRole {
+  roleId: string;
+  name: string;
+  description: string;
+  /** Administrators can reach the admin portal. Exactly one role should have it. */
+  isAdministrator: boolean;
+  /** True for roles Power Pages creates and manages itself — not deletable. */
+  isSystemManaged: boolean;
+}
+
+/** Someone who can sign in. Maps to a `contact` with web roles attached. */
+export interface PortalUser {
+  userId: string;
+  displayName: string;
+  email: string;
+  roleIds: string[];
+  status: 'active' | 'disabled';
+  /** Null if they have never signed in. */
+  lastSignIn: string | null;
+}
+
+/**
+ * How a question is answered. Determines the control the form renders and, in
+ * SQL terms, the column type behind it.
+ */
+export type QuestionInputType =
+  | 'date'
+  | 'text'
+  | 'longtext'
+  | 'number'
+  | 'boolean'
+  | 'choice'
+  | 'multichoice';
+
+export const QUESTION_INPUT_TYPES: QuestionInputType[] = [
+  'date',
+  'text',
+  'longtext',
+  'number',
+  'boolean',
+  'choice',
+  'multichoice',
+];
+
+/** Human labels for the input types, so the admin UI isn't showing enum values. */
+export const QUESTION_INPUT_LABELS: Record<QuestionInputType, string> = {
+  date: 'Date',
+  text: 'Short text',
+  longtext: 'Long text',
+  number: 'Number',
+  boolean: 'Yes / no',
+  choice: 'Dropdown — one',
+  multichoice: 'Dropdown — many',
+};
+
+/** A group of questions rendered together, e.g. one Account Monitoring ribbon. */
+export interface QuestionSection {
+  sectionId: string;
+  title: string;
+  description: string;
+  /** Where this section appears. Kept coarse on purpose. */
+  area: 'account-monitoring' | 'meeting-log';
+  order: number;
+  enabled: boolean;
+}
+
+/** One question inside a section. */
+export interface QuestionDefinition {
+  questionId: string;
+  sectionId: string;
+  label: string;
+  /** Supporting line under the label. Empty string for none. */
+  helpText: string;
+  inputType: QuestionInputType;
+  required: boolean;
+  order: number;
+  /** Disabled questions stay in the table but stop being rendered. */
+  enabled: boolean;
+  /**
+   * Which dropdown supplies the options. Required for choice/multichoice and
+   * null for everything else — the admin UI enforces that pairing.
+   */
+  optionSetId: string | null;
+  /**
+   * Marks a question whose wording the business has not signed off. Renders a
+   * visible "name TBC" marker wherever the question appears.
+   */
+  nameProvisional: boolean;
+}
+
+/** One selectable value in a dropdown. */
+export interface OptionSetOption {
+  optionId: string;
+  label: string;
+  order: number;
+  enabled: boolean;
+}
+
+/**
+ * A reusable list of choices. Maps to a Dataverse choice column or, in SQL, a
+ * lookup table.
+ */
+export interface OptionSet {
+  optionSetId: string;
+  name: string;
+  description: string;
+  /** Where this list is used today. Free text — for the admin's benefit only. */
+  usage: string;
+  /** True for lists the code still depends on by value, so labels can't be renamed freely. */
+  codeDependent: boolean;
+  options: OptionSetOption[];
+}
+
 /** Options for {@link AccountService.getNotifications}. */
 export interface NotificationQuery {
   /**
@@ -521,4 +656,24 @@ export interface AccountService {
   getIncentive(incentiveId: string): Promise<Incentive | undefined>;
   /** Third write path, alongside `saveAccountMonitoring` and `logMeeting`. */
   createIncentive(draft: IncentiveDraft): Promise<Incentive>;
+
+  /* ─── Admin ─────────────────────────────────────────────────────────────
+     Configuration reads and writes. In production every one of these is gated
+     by an administrator web role — the portal must never rely on the UI hiding
+     the page, because the Web API is reachable regardless. */
+
+  getWebRoles(): Promise<WebRole[]>;
+  getPortalUsers(): Promise<PortalUser[]>;
+  /** Replaces a user's whole role set, so removals are as explicit as additions. */
+  setUserRoles(userId: string, roleIds: string[]): Promise<PortalUser>;
+  setUserStatus(userId: string, status: PortalUser['status']): Promise<PortalUser>;
+
+  getQuestionSections(): Promise<QuestionSection[]>;
+  getQuestions(): Promise<QuestionDefinition[]>;
+  /** Creates when `questionId` is unknown, updates when it is not. */
+  saveQuestion(question: QuestionDefinition): Promise<QuestionDefinition>;
+  deleteQuestion(questionId: string): Promise<void>;
+
+  getOptionSets(): Promise<OptionSet[]>;
+  saveOptionSet(optionSet: OptionSet): Promise<OptionSet>;
 }

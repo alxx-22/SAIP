@@ -57,6 +57,7 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 | Account Focus — Ribbon C, Account Monitoring (editable) | Built |
 | Log a Meeting modal (both entry points) | Built |
 | Business Development — incentives, resources, nominated accounts, opportunities | Built |
+| Admin portal — users & roles, questions, dropdowns | Built (config not yet consumed by the app) |
 | SAIP.Ai assistant | Placeholder only — structural, no agent behind it |
 | Retractable left navigation | Built |
 | Profile & settings — theme, accent, notification options | Built |
@@ -84,7 +85,7 @@ src/
     index.ts           SWAP POINT: binds the interface to an implementation
     derive.ts          derived business rules (overdue, renewing-soon, formatting)
     mock/              invented data + the mock implementation
-                       (mockData.ts, mockIncentives.ts)
+                       (mockData.ts, mockIncentives.ts, mockAdmin.ts)
   motion/            motion tokens, Framer variants, reduced-motion hook
   hooks/             useAsync (race-safe loader), useCountUp
   components/
@@ -95,8 +96,9 @@ src/
     focus/             the three Account Focus ribbons
     meetings/          MeetingLogModal, MeetingLogProvider, MeetingHistory
     bizdev/            incentive resources, opportunities table, create form
+    admin/             users & roles, questions, dropdown option sets
   pages/             HomePage, AccountFocusPage, BusinessDevelopmentPage,
-                     ProfilePage, PlaceholderPage
+                     AdminPage, ProfilePage, PlaceholderPage
   settings/          SettingsProvider (theme + notifications), accent catalogue
 
 scripts/
@@ -143,6 +145,23 @@ recorded here so they aren't rediscovered the hard way:
 Per-user scoping must be enforced by Power Pages table permissions, not by the
 backing store: the virtual connector uses a single shared identity for every
 portal user.
+
+### Configuration as data
+
+The admin portal (`/#/admin`) manages the questions the app asks, the dropdowns
+those questions choose from, and who holds which web role. The seeded values in
+`mockAdmin.ts` mirror what the app renders today **field id for field id** — the
+Account Monitoring question ids are the same `mon-*` strings the ribbon and the
+notification deep-links already use.
+
+That is deliberate: those records are the shape of the eventual tables, and the
+seed is the migration's starting content. When the app is wired to read from
+them, nothing on screen should change.
+
+**Not yet consumed.** The ribbons and the meeting form still use their TypeScript
+constants, so an edit in the admin portal does not change them yet. The portal
+says so in its own banner rather than only here. Wiring the consumers is the next
+step, alongside the SQL build plan.
 
 ---
 

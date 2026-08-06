@@ -109,6 +109,9 @@ export function SaipAiPrompt() {
               }}
               placeholder="Ask SAIP.Ai anything about your accounts…"
               aria-label="Ask SAIP.Ai"
+              // The wrapper below draws the border and the accent glow on focus.
+              // Without this the input drew its own ring inside that one.
+              className="saip-bare-input"
               style={{
                 font: 'inherit',
                 fontSize: '0.9375rem',

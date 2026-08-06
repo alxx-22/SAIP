@@ -11,6 +11,7 @@ import { AccountFocusPage } from '@/pages/AccountFocusPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { BusinessDevelopmentPage } from '@/pages/BusinessDevelopmentPage';
+import { AdminPage } from '@/pages/AdminPage';
 
 /**
  * SAIP routes.
@@ -62,6 +63,9 @@ export default function App() {
           {/* Settings live in the app rather than on a second Power Pages page —
               see the note at the top of ProfilePage. */}
           <Route path="/profile" element={<ProfilePage />} />
+          {/* Administrators only in production — enforced by web role and table
+              permissions, never by hiding the nav entry. */}
+          <Route path="/admin" element={<AdminPage />} />
           <Route
             path="/executive-view"
             element={

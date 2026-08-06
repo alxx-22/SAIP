@@ -19,6 +19,11 @@ import type {
   MeetingLog,
   Incentive,
   IncentiveDraft,
+  OptionSet,
+  PortalUser,
+  QuestionDefinition,
+  QuestionSection,
+  WebRole,
   MeetingLogDraft,
   NotificationQuery,
   Score,
@@ -45,6 +50,13 @@ import {
   emptyMonitoring,
 } from './mockData';
 import { MOCK_INCENTIVES } from './mockIncentives';
+import {
+  MOCK_OPTION_SETS,
+  MOCK_PORTAL_USERS,
+  MOCK_QUESTIONS,
+  MOCK_QUESTION_SECTIONS,
+  MOCK_WEB_ROLES,
+} from './mockAdmin';
 import { MONITORING_OVERDUE_MONTHS, formatRelative, isOverdue } from '../derive';
 
 /**
@@ -56,6 +68,19 @@ import { MONITORING_OVERDUE_MONTHS, formatRelative, isOverdue } from '../derive'
  * a prototype with no store behind it.
  */
 const createdIncentives: Incentive[] = [];
+
+/**
+ * Admin configuration, copied on first import so edits are held for the session.
+ *
+ * Deep-copied rather than referenced: the exported MOCK_* arrays are the seed
+ * values, and mutating them in place would make "reload to get back to the
+ * defaults" quietly untrue.
+ */
+const adminState = {
+  users: structuredClone(MOCK_PORTAL_USERS) as PortalUser[],
+  questions: structuredClone(MOCK_QUESTIONS) as QuestionDefinition[],
+  optionSets: structuredClone(MOCK_OPTION_SETS) as OptionSet[],
+};
 
 /** Simulated network latency, in ms. */
 const LATENCY = { fast: 220, normal: 420, write: 640 };
@@ -227,6 +252,76 @@ export const mockAccountService: AccountService = {
     };
     createdIncentives.unshift(incentive);
     return delay(incentive, LATENCY.write);
+  },
+
+  /* ─── Admin ───────────────────────────────────────────────────────────── */
+
+  async getWebRoles(): Promise<WebRole[]> {
+    return delay(MOCK_WEB_ROLES, LATENCY.fast);
+  },
+
+  async getPortalUsers(): Promise<PortalUser[]> {
+    return delay(structuredClone(adminState.users), LATENCY.normal);
+  },
+
+  async setUserRoles(userId: string, roleIds: string[]): Promise<PortalUser> {
+    const user = adminState.users.find((u) => u.userId === userId);
+    if (!user) throw new Error(`Unknown user ${userId}`);
+    user.roleIds = [...roleIds];
+    return delay(structuredClone(user), LATENCY.write);
+  },
+
+  async setUserStatus(
+    userId: string,
+    status: PortalUser['status'],
+  ): Promise<PortalUser> {
+    const user = adminState.users.find((u) => u.userId === userId);
+    if (!user) throw new Error(`Unknown user ${userId}`);
+    user.status = status;
+    return delay(structuredClone(user), LATENCY.write);
+  },
+
+  async getQuestionSections(): Promise<QuestionSection[]> {
+    return delay(MOCK_QUESTION_SECTIONS, LATENCY.fast);
+  },
+
+  async getQuestions(): Promise<QuestionDefinition[]> {
+    return delay(structuredClone(adminState.questions), LATENCY.normal);
+  },
+
+  async saveQuestion(question: QuestionDefinition): Promise<QuestionDefinition> {
+    const index = adminState.questions.findIndex(
+      (q) => q.questionId === question.questionId,
+    );
+    if (index === -1) {
+      adminState.questions.push(structuredClone(question));
+    } else {
+      adminState.questions[index] = structuredClone(question);
+    }
+    return delay(structuredClone(question), LATENCY.write);
+  },
+
+  async deleteQuestion(questionId: string): Promise<void> {
+    adminState.questions = adminState.questions.filter(
+      (q) => q.questionId !== questionId,
+    );
+    return delay(undefined, LATENCY.write);
+  },
+
+  async getOptionSets(): Promise<OptionSet[]> {
+    return delay(structuredClone(adminState.optionSets), LATENCY.normal);
+  },
+
+  async saveOptionSet(optionSet: OptionSet): Promise<OptionSet> {
+    const index = adminState.optionSets.findIndex(
+      (o) => o.optionSetId === optionSet.optionSetId,
+    );
+    if (index === -1) {
+      adminState.optionSets.push(structuredClone(optionSet));
+    } else {
+      adminState.optionSets[index] = structuredClone(optionSet);
+    }
+    return delay(structuredClone(optionSet), LATENCY.write);
   },
 };
 
