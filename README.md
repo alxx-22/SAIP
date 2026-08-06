@@ -1,8 +1,19 @@
 # SAIP — Services Account Intelligence Portal
 
-Front-end prototype for the HPE Services Account Intelligence Portal, built to be
-lifted into **Microsoft Power Pages** as Web Templates / Page Templates or compiled
-into a Code Component (PCF).
+Front-end for the HPE Services Account Intelligence Portal, deployed as the entire
+front end of a **Microsoft Power Pages** site.
+
+This repository holds **both halves**:
+
+| Path | What it is |
+| --- | --- |
+| `src/`, `vite.config.ts`, … | The React / Vite / TypeScript application |
+| `powerpages/` | The Power Pages site tree, uploaded with `pac pages upload` |
+
+The React app is built to a pinned two-file bundle that is copied into
+`powerpages/web-files/` and served by a Web Template. **Power Pages has no Node
+build step** — only compiled output ever goes into `powerpages/`, never `src/`.
+See [Deploying to Power Pages](#deploying-to-power-pages).
 
 > **This prototype runs entirely on invented sample data.**
 > No account name, score, contract, city, date or spend figure in this repository
@@ -15,12 +26,23 @@ into a Code Component (PCF).
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # type-check + production bundle into dist/
-npm run typecheck  # types only
+npm run dev              # http://localhost:5173
+npm run build            # type-check + production bundle into dist/
+npm run build:powerpages # build, then sync the bundle into powerpages/
+npm run typecheck        # types only
+npm run build:debug      # build with sourcemaps, for local debugging only
 ```
 
 Requires Node 18+.
+
+To ship a change to the live site:
+
+```bash
+npm run build:powerpages
+pac pages upload --path ./powerpages --modelVersion 2
+```
+
+That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 
 ---
 
@@ -67,6 +89,15 @@ src/
     focus/             the three Account Focus ribbons
     meetings/          MeetingLogModal, MeetingLogProvider, MeetingHistory
   pages/             HomePage, AccountFocusPage, PlaceholderPage
+
+scripts/
+  sync-powerpages.mjs  copies dist/ into the site tree, with guard rails
+
+powerpages/          ← the Power Pages site tree (pac pages download/upload)
+  web-files/           saip-app.mjs + saip-app.css and their .webfile.yml records
+  web-templates/       SAIP App Host — renders the whole document
+  page-templates/      SAIP App — header/footer suppressed
+  web-pages/home/      repointed at the SAIP App page template
 ```
 
 **No component reaches past `services/`.** Every figure on screen arrives through
@@ -85,6 +116,24 @@ badge and the prototype banner across the app at once.
 
 Reads map to Dataverse table queries; the two write paths are
 `saveAccountMonitoring` and `logMeeting`.
+
+Whatever backs the data, the app reaches it through the **Power Pages Web API**
+(`/_api/<entityset>`), which speaks Dataverse only — so every entity has to surface
+as a Dataverse table, native or virtual. Two constraints found while scoping this,
+recorded here so they aren't rediscovered the hard way:
+
+- **Fabric OneLake virtual tables are read-only**, so they can never serve
+  `saveAccountMonitoring` or `logMeeting`. They also require the Fabric capacity to
+  be in the *exact same region* as the Dataverse environment.
+- **SQL Server virtual tables are writable** and carry no region requirement. They
+  need a GUID or integer primary key — with anything else, reads succeed and writes
+  fail with *"No primary key exists in table"*. A virtual table also can't sit on
+  the 1 side of a 1:N relationship, so filter by `accountId` rather than modelling
+  relationships.
+
+Per-user scoping must be enforced by Power Pages table permissions, not by the
+backing store: the virtual connector uses a single shared identity for every
+portal user.
 
 ---
 
@@ -350,26 +399,128 @@ hover-revealed to always-visible, so no information is gated behind an animation
 
 ---
 
+## Deploying to Power Pages
+
+### The loop
+
+```bash
+npm run build:powerpages
+pac pages upload --path ./powerpages --modelVersion 2
+```
+
+`build:powerpages` type-checks, builds, and copies the two emitted files into
+`powerpages/web-files/`. It refuses to run — rather than producing a half-broken
+site — if the build emits anything that has no web file record behind it, or if a
+manifest is missing or points at the wrong filename.
+
+The site is on the **enhanced data model** (`--modelVersion 2`). Confirm with
+`pac pages list -v` if you ever work against a different environment.
+
+### How the app is mounted
+
+```
+web-pages/home              Home        adx_pagetemplateid ─┐
+page-templates/SAIP-App                                     ├─> SAIP App
+                            adx_usewebsiteheaderandfooter: false
+                            adx_webtemplateid ──────────────┐
+web-templates/saip-app-host SAIP App Host                   └─> renders <html>
+                              <link href="/saip-app.css">
+                              <script type="module" src="/saip-app.mjs">
+web-files/                  the two artifacts + their .webfile.yml records
+```
+
+Header and footer are switched **off** at the page template, which means the web
+template renders the *entire* document — no Bootstrap, no `theme.css`, no
+`portalbasictheme.css`. That is deliberate: Bootstrap's global resets bleed into
+Grommet. The cost is that the Home page is no longer editable in the Power Pages
+design studio, which reports *"Unable to render native controls"*. That message is
+expected and harmless. Every other page still uses the studio template.
+
+### Why the filenames are pinned
+
+Each artifact is backed by an `adx_webfile` row whose `adx_partialurl` is fixed.
+Content-hashed filenames would need a **new Dataverse record per build**, so
+`vite.config.ts` pins the output names and disables hashing, code splitting and
+sourcemaps. Don't re-enable code splitting without creating web file records for
+every chunk first — `sync-powerpages.mjs` will stop you.
+
+### Why `.mjs` and not `.js`
+
+`js` is on Dataverse's **default blocked-attachments list**, so uploading a `.js`
+web file fails with:
+
+> Upload aborted. Your site data contains file(s) with extension(s) .js that are
+> blocked in this environment, so no changes were uploaded.
+
+`.mjs` is not blocked, is semantically correct for an ES module, and works whether
+or not `.js` is unblocked — so it is the default here. The MIME type in
+`saip-app.mjs.webfile.yml` is `text/javascript`, and browsers dispatch on the
+`Content-Type` header rather than the extension, so it loads exactly like `.js`.
+
+To switch back after unblocking `.js` (Power Platform admin center → Environments →
+Settings → Privacy + Security), change `entryFileNames` in `vite.config.ts`, the
+`TRACKED` list in `scripts/sync-powerpages.mjs`, the `adx_name` / `adx_partialurl` /
+`filename` in the manifest, and the `<script src>` in the web template. Keep the
+existing GUIDs so the records are updated rather than duplicated.
+
+### Never hand-write a `.webfile.yml`
+
+The `.yml` files under `powerpages/` contain **real Dataverse GUIDs** identifying
+live rows. Inventing one either creates a duplicate record or orphans the existing
+one. New site assets must be scaffolded via the Power Pages Actions pane in VS Code
+or `pac`, then populated. `sync-powerpages.mjs` fails loudly rather than generating
+a manifest for you.
+
+Editing the *content* of an existing tracked file is fine — that is what the sync
+script does.
+
+### Stale JS after an upload
+
+Almost always CDN/output caching rather than your browser. In order:
+
+1. Clear the cache from the Power Pages design studio.
+2. Re-test in a private window. A hard refresh only proves your own browser is clean.
+3. Because filenames are pinned there is no hash-based cache busting. If it becomes
+   painful, add a version query string to the `<script src>` in the web template —
+   the template is cheap to change, the web file records are not.
+
+### Identity handoff
+
+The web template writes `window.SAIP_CONTEXT` before the app bundle loads:
+
+```js
+window.SAIP_CONTEXT = { isAuthenticated, userId, displayName, email, roles }
+```
+
+**Nothing reads it yet** — `getCurrentUser()` still answers from
+`mockAccountService`. Wiring that up is the first task of the data-layer work; see
+[Going live against Dataverse](#going-live-against-dataverse).
+
+`/js/portal-shell.js` is also loaded, which supplies `shell.getTokenDeferred()` for
+the `__RequestVerificationToken` header that Web API writes require. Unused today,
+included so the data layer doesn't need a template change to get started.
+
+---
+
 ## Notes for the Power Pages developer
 
 - **No authentication code exists**, by design. Every screen assumes a signed-in
   user; `getCurrentUser()` is the seam where the Entra ID identity plugs in.
-- **`HashRouter`, not `BrowserRouter`** (`src/main.tsx`). SAIP will be mounted at
-  a path the front-end doesn't control, inside a site whose server rewrite rules
-  aren't ours to configure. History routing would need every deep path rewritten
-  server-side and would break on hard refresh. Swap it if the host page provides
-  its own routing — `App.tsx`'s `<Routes>` is the only thing to re-point.
+- **`HashRouter`, not `BrowserRouter`** (`src/main.tsx`). The app is mounted on the
+  Home page and Power Pages owns server-side routing, so history routing would need
+  every deep path rewritten server-side and would break on hard refresh. Hash
+  routing needs no server cooperation.
+- **The opening animation plays once per document load, not per route change.**
+  `AppIntro` mounts once above `<Routes>`. Since the whole app lives on one Power
+  Pages page, users see it on arrival and not again while navigating.
 - **The app does not pin itself to the viewport.** It flows with the document and
-  the header uses `position: sticky`, so it won't fight a Power Pages template's
-  own header, footer and scroll.
-- **Fonts load from HPE's CDN.** In Power Pages, move the `@font-face` block from
-  `src/styles/fonts.css` into the site's base template `<head>` so it loads once
-  per site instead of once per component.
-- `vite.config.ts` uses a relative `base`, so `dist/` can be served from any
-  sub-path.
-- The bundle is ~735 KB raw / ~209 KB gzipped, dominated by Grommet. If that
-  matters for the PCF route, code-split the Account Focus ribbons — they're
-  already isolated components.
+  the header uses `position: sticky`.
+- **Fonts load from HPE's CDN** (`https://www.hpe.com`), referenced from the built
+  CSS. If the site ever enables a Content-Security-Policy it needs `font-src` for
+  that host — and `style-src 'unsafe-inline'`, because Grommet uses
+  styled-components and injects CSS at runtime. Without it the app renders unstyled.
+- The bundle is ~790 KB raw / ~224 KB gzipped, dominated by Grommet. Well inside the
+  Dataverse attachment limit (it is base64-encoded, so budget ~1.03 MB against it).
 
 ### Scope note
 

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAIP — Services Account Intelligence Portal</title>
+
+  <!--
+    This page template has "Use Website Header and Footer" switched OFF, so this
+    web template renders the WHOLE document. Nothing from the Power Pages default
+    layout is emitted — no Bootstrap, no portalbasictheme.css, no theme.css.
+    That is deliberate: Bootstrap's global resets bleed into Grommet.
+
+    Consequence: any Power Pages chrome you later decide you want back has to be
+    added here explicitly.
+  -->
+
+  <link rel="preconnect" href="https://www.hpe.com" crossorigin>
+  <link rel="stylesheet" href="/saip-app.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <!--
+    Portal shell. Supplies the `shell` global whose getTokenDeferred() returns the
+    __RequestVerificationToken required for Web API writes. Not needed by the
+    prototype (it runs entirely on mock data) but included now so the data layer
+    phase doesn't need a template change to get started.
+  -->
+  <script src="/js/portal-shell.js" type="text/javascript"></script>
+
+  <!--
+    Identity handoff. Written BEFORE the app bundle loads so it is available at
+    module-evaluation time.
+
+    NOTE: as of this commit nothing in the React app reads window.SAIP_CONTEXT —
+    services/mock/mockAccountService.ts still answers getCurrentUser() from
+    MOCK_CURRENT_USER. Wiring getCurrentUser() to this object is the first task
+    of the data-layer phase.
+  -->
+  <script>
+    window.SAIP_CONTEXT = {
+    {% if user %}
+      isAuthenticated: true,
+      userId: {{ user.id | json }},
+      displayName: {{ user.fullname | json }},
+      email: {{ user.emailaddress1 | json }},
+      roles: {{ user.roles | json }}
+    {% else %}
+      isAuthenticated: false,
+      userId: null,
+      displayName: null,
+      email: null,
+      roles: []
+    {% endif %}
+    };
+  </script>
+
+  <script type="module" src="/saip-app.mjs"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+adx_description: Hosts the SAIP React bundle as the entire page. Header and footer suppressed.
+adx_entityname: adx_webpage
+adx_isdefault: false
+adx_name: SAIP App
+adx_pagetemplateid: bab91a25-5f18-4cb6-8784-831e234b1da0
+adx_type: 756150001
+adx_usewebsiteheaderandfooter: false
+adx_webtemplateid: 2b276919-a9c7-47cd-be3a-9b7338cddf8a
