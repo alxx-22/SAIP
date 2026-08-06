@@ -17,6 +17,8 @@ import type {
   AppNotification,
   CurrentUser,
   MeetingLog,
+  Incentive,
+  IncentiveDraft,
   MeetingLogDraft,
   NotificationQuery,
   Score,
@@ -42,7 +44,18 @@ import {
   MOCK_VALUE_OVERVIEW,
   emptyMonitoring,
 } from './mockData';
+import { MOCK_INCENTIVES } from './mockIncentives';
 import { MONITORING_OVERDUE_MONTHS, formatRelative, isOverdue } from '../derive';
+
+/**
+ * Incentives created during the session, newest first.
+ *
+ * Module-level like `writtenMonitoring`, so a created incentive survives
+ * navigation and shows up in the list — the write path is genuinely exercised
+ * rather than faked with a toast. Lost on reload, which is the honest limit of
+ * a prototype with no store behind it.
+ */
+const createdIncentives: Incentive[] = [];
 
 /** Simulated network latency, in ms. */
 const LATENCY = { fast: 220, normal: 420, write: 640 };
@@ -181,6 +194,39 @@ export const mockAccountService: AccountService = {
 
   async getNotifications(options?: NotificationQuery): Promise<AppNotification[]> {
     return delay(buildNotifications(options?.overdueAfterMonths), LATENCY.normal);
+  },
+
+  async getIncentives(): Promise<Incentive[]> {
+    const all = [...createdIncentives, ...MOCK_INCENTIVES];
+    return delay(
+      [...all].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      LATENCY.normal,
+    );
+  },
+
+  async getIncentive(incentiveId: string): Promise<Incentive | undefined> {
+    const all = [...createdIncentives, ...MOCK_INCENTIVES];
+    return delay(
+      all.find((i) => i.incentiveId === incentiveId),
+      LATENCY.fast,
+    );
+  },
+
+  async createIncentive(draft: IncentiveDraft): Promise<Incentive> {
+    const now = new Date().toISOString();
+    const incentive: Incentive = {
+      ...draft,
+      incentiveId: `inc-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      // A new incentive has nothing attached to it yet. Resources and
+      // opportunities arrive afterwards — uploads and CRM records are separate
+      // actions, not fields on the create form.
+      resources: [],
+      opportunities: [],
+      createdAt: now,
+      createdBy: MOCK_CURRENT_USER.displayName,
+    };
+    createdIncentives.unshift(incentive);
+    return delay(incentive, LATENCY.write);
   },
 };
 

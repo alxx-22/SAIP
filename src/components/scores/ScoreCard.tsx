@@ -31,8 +31,28 @@ const STATUS_COLOR: Record<
   },
 };
 
-const GAUGE_SIZE = 132;
+/**
+ * Gauge geometry, in SVG user units.
+ *
+ * This is now the VIEWBOX size, not the rendered size. The SVG is laid out by
+ * CSS (`GAUGE_CSS_SIZE`) and scales to fit, so these numbers only set the shape
+ * — the ratio of stroke to radius — and never the pixels on screen.
+ */
+const GAUGE_SIZE = 120;
 const STROKE = 10;
+
+/**
+ * Rendered gauge size, tied to the VIEWPORT HEIGHT.
+ *
+ * The overview sits above the account list, so on a short window the three
+ * cards were eating the fold and pushing the accounts out of sight. Sizing the
+ * gauge in `vh` means the cards give height back on a laptop screen and take it
+ * on a large monitor, instead of being one fixed height everywhere.
+ *
+ * Clamped at both ends: below ~76px the value label stops fitting inside the
+ * ring, and above ~116px the card starts to dominate the page again.
+ */
+const GAUGE_CSS_SIZE = 'clamp(76px, 11vh, 116px)';
 const RADIUS = (GAUGE_SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -65,10 +85,10 @@ export function ScoreCard({ score, index }: { score: Score; index: number }) {
       onHoverEnd={() => setHovered(false)}
       whileHover={reduced ? undefined : { y: -4 }}
       transition={{ duration: duration.fast, ease: easing.out }}
-      style={{ flex: '1 1 260px', minWidth: 260 }}
+      style={{ flex: '1 1 230px', minWidth: 230 }}
     >
       <Box
-        pad="medium"
+        pad="small"
         round="medium"
         background="background-front"
         border={{ color: hovered ? 'border-default' : 'border-weak' }}
@@ -123,7 +143,7 @@ export function ScoreCard({ score, index }: { score: Score; index: number }) {
           <SampleDataBadge />
         </Box>
 
-        <Box direction="row" align="center" gap="medium">
+        <Box direction="row" align="center" gap="small">
           <Gauge
             value={score.value}
             display={displayValue}
@@ -203,16 +223,20 @@ function Gauge({
       // well as the SVG inside it.
       style={{
         position: 'relative',
-        width: GAUGE_SIZE,
-        height: GAUGE_SIZE,
+        width: GAUGE_CSS_SIZE,
+        height: GAUGE_CSS_SIZE,
         overflow: 'visible',
       }}
       role="img"
       aria-label={`${label}: ${Math.round(value)} out of 100`}
     >
       <motion.svg
-        width={GAUGE_SIZE}
-        height={GAUGE_SIZE}
+        // Sized by CSS via the viewBox rather than fixed width/height
+        // attributes, so the whole gauge scales with the viewport.
+        viewBox={`0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}`}
+        width="100%"
+        height="100%"
+        preserveAspectRatio="xMidYMid meet"
         // "Needs attention" is a smooth fade in / fade out pulse — no scaling,
         // no flash. Symmetric easing over a long cycle so it breathes rather
         // than blinks.
@@ -285,7 +309,7 @@ function Gauge({
           justifyContent: 'center',
         }}
       >
-        <Text size="xxlarge" weight={600} color="text-strong">
+        <Text size="xlarge" weight={600} color="text-strong">
           {Math.round(display)}
         </Text>
         <Text size="xsmall" color="text-weak">

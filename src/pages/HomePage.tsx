@@ -5,6 +5,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { AccountSelectionPane } from '@/components/accounts/AccountSelectionPane';
 import { LogMeetingButton } from '@/components/common/LogMeetingButton';
 import { ScoresOverview } from '@/components/scores/ScoresOverview';
+import { SaipAiPrompt } from '@/components/shell/SaipAiPrompt';
 import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
 import {
   fadeRise,
@@ -54,6 +55,14 @@ export function HomePage() {
             {/* No account passed → the modal renders its account picker. */}
             <LogMeetingButton onClick={() => openMeetingLog()} />
           </Box>
+        </motion.div>
+
+        {/* Assistant entry point sits directly under the greeting: it is the
+            fastest route to an answer, so it comes before the dashboards a rep
+            would otherwise have to read. Placeholder for now — see the note in
+            SaipAiPrompt. */}
+        <motion.div variants={staggerItem(reduced)}>
+          <SaipAiPrompt />
         </motion.div>
 
         <motion.div variants={staggerItem(reduced)}>

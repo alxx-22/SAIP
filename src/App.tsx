@@ -10,6 +10,7 @@ import { HomePage } from '@/pages/HomePage';
 import { AccountFocusPage } from '@/pages/AccountFocusPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { BusinessDevelopmentPage } from '@/pages/BusinessDevelopmentPage';
 
 /**
  * SAIP routes.
@@ -70,14 +71,12 @@ export default function App() {
               />
             }
           />
+          <Route path="/business-development" element={<BusinessDevelopmentPage />} />
+          {/* Detail is a route, not component state, so an incentive is
+              linkable and survives a refresh. */}
           <Route
-            path="/business-development"
-            element={
-              <PlaceholderPage
-                title="Business Development"
-                description="Reserved in the navigation only. Out of scope for this build — no content has been designed or built yet."
-              />
-            }
+            path="/business-development/:incentiveId"
+            element={<BusinessDevelopmentPage />}
           />
           <Route
             path="*"

@@ -10,7 +10,12 @@
  * before release — see README placeholder checklist.
  */
 
-import type { IsoDate, ServiceContract } from './types';
+import type {
+  IncentiveOpportunity,
+  IncentiveStatus,
+  IsoDate,
+  ServiceContract,
+} from './types';
 
 /** A contract renewing within this many days gets the "renewing soon" flag. */
 export const RENEWAL_SOON_DAYS = 90;
@@ -77,6 +82,31 @@ export function isOverdue(
 ): boolean {
   if (!date) return true;
   return monthsSince(date) >= months;
+}
+
+/**
+ * Whether an incentive is still running.
+ *
+ * Derived rather than stored, for the same reason notifications are: an
+ * incentive is historical because its end date has passed, not because someone
+ * remembered to change a field. A null `endDate` is open-ended and stays active.
+ */
+export function incentiveStatus(endDate: IsoDate | null): IncentiveStatus {
+  if (!endDate) return 'active';
+  return daysUntil(endDate) >= 0 ? 'active' : 'historical';
+}
+
+/**
+ * Total value of an incentive's opportunities, excluding lost ones.
+ *
+ * Closed-lost is deliberately excluded: including it would inflate the headline
+ * figure with revenue nobody is going to book. Closed-won IS included, because
+ * the number is "what this incentive produced", not "what is still open".
+ */
+export function incentivePipelineValue(opportunities: IncentiveOpportunity[]): number {
+  return opportunities
+    .filter((o) => o.stage !== 'Closed lost')
+    .reduce((total, o) => total + o.value, 0);
 }
 
 /** Currency, no decimals — these are six- and seven-figure commercial values. */

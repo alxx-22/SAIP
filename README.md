@@ -56,11 +56,13 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 | Account Focus — Ribbon B, Active Service Contracts | Built |
 | Account Focus — Ribbon C, Account Monitoring (editable) | Built |
 | Log a Meeting modal (both entry points) | Built |
+| Business Development — incentives, resources, nominated accounts, opportunities | Built |
+| SAIP.Ai assistant | Placeholder only — structural, no agent behind it |
 | Retractable left navigation | Built |
 | Profile & settings — theme, accent, notification options | Built |
 | Light / dark themes + selectable accent | Built |
 | Copilot Studio widget | Container + launcher only, per brief |
-| Executive View / Business Development | Nav placeholders only, per brief |
+| Executive View | Nav placeholder only, per brief |
 | Entra ID authentication | Deliberately absent — Power Pages handles it |
 | Dataverse / Fabric integration | Mock service layer only, built to be swapped |
 
@@ -82,6 +84,7 @@ src/
     index.ts           SWAP POINT: binds the interface to an implementation
     derive.ts          derived business rules (overdue, renewing-soon, formatting)
     mock/              invented data + the mock implementation
+                       (mockData.ts, mockIncentives.ts)
   motion/            motion tokens, Framer variants, reduced-motion hook
   hooks/             useAsync (race-safe loader), useCountUp
   components/
@@ -91,7 +94,9 @@ src/
     scores/            ScoreCard, ScoresOverview
     focus/             the three Account Focus ribbons
     meetings/          MeetingLogModal, MeetingLogProvider, MeetingHistory
-  pages/             HomePage, AccountFocusPage, ProfilePage, PlaceholderPage
+    bizdev/            incentive resources, opportunities table, create form
+  pages/             HomePage, AccountFocusPage, BusinessDevelopmentPage,
+                     ProfilePage, PlaceholderPage
   settings/          SettingsProvider (theme + notifications), accent catalogue
 
 scripts/

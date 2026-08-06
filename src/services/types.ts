@@ -319,6 +319,154 @@ export interface AppNotification {
   target: { ribbon: 'monitoring'; fieldId: string };
 }
 
+/* ─── Business Development: incentives ──────────────────────────────────── */
+
+/**
+ * What an incentive is for. Drives grouping and the colour chip in the list.
+ *
+ * PLACEHOLDER — this list came from the Business Development brief and has not
+ * been confirmed with the account team. Adding a value means adding a colour in
+ * `INCENTIVE_TYPE_COLORS`; the UI has no default branch, deliberately, so an
+ * unhandled type is a type error rather than an invisible styling bug.
+ */
+export type IncentiveType = 'Sales Training' | 'Upsell' | 'Workshop' | 'Sales Play';
+
+export const INCENTIVE_TYPES: IncentiveType[] = [
+  'Sales Training',
+  'Upsell',
+  'Workshop',
+  'Sales Play',
+];
+
+/**
+ * Colour coding for incentive types, grouped by what the type means
+ * commercially: green for revenue motions, blue for enablement, purple for
+ * relationship building. Drawn from HPE base ramps; the type name is always
+ * shown alongside, so colour is never the only signal.
+ */
+export const INCENTIVE_TYPE_COLORS: Record<
+  IncentiveType,
+  { background: string; border: string; text: string }
+> = {
+  'Sales Training': {
+    background: 'var(--hpe-base-color-blue-50)',
+    border: 'var(--hpe-base-color-blue-500)',
+    text: 'var(--hpe-base-color-blue-900)',
+  },
+  Upsell: {
+    background: 'var(--hpe-base-color-green-100)',
+    border: 'var(--hpe-base-color-green-600)',
+    text: 'var(--hpe-base-color-green-1000)',
+  },
+  Workshop: {
+    background: 'var(--hpe-base-color-purple-100)',
+    border: 'var(--hpe-base-color-purple-700)',
+    text: 'var(--hpe-base-color-purple-900)',
+  },
+  'Sales Play': {
+    background: 'var(--hpe-base-color-orange-50)',
+    border: 'var(--hpe-base-color-orange-600)',
+    text: 'var(--hpe-base-color-orange-1000)',
+  },
+};
+
+/**
+ * Whether an incentive is still running.
+ *
+ * DERIVED, never stored — it is a question about `endDate` versus today, and
+ * storing it would mean something has to remember to flip it. See
+ * `incentiveStatus` in `derive.ts`.
+ */
+export type IncentiveStatus = 'active' | 'historical';
+
+/**
+ * A supporting document attached to an incentive.
+ *
+ * PLACEHOLDER — nothing is actually uploaded or downloaded in the prototype.
+ * In production these are Dataverse notes/annotations or SharePoint documents;
+ * `url` is null here precisely so the UI cannot pretend a file exists.
+ */
+export interface IncentiveResource {
+  resourceId: string;
+  /** File name as the uploader saved it, extension included. */
+  name: string;
+  /** Only PDFs today, but stored so the list can show the right icon later. */
+  kind: 'pdf';
+  sizeBytes: number;
+  uploadedAt: string;
+  uploadedBy: string;
+  /** Null while there is no document store behind this. */
+  url: string | null;
+}
+
+/**
+ * An opportunity raised against an incentive's campaign code.
+ *
+ * `opportunityId` follows the OPE-0000000000 shape used in the CRM — ten
+ * digits after the prefix. The numbers here are invented.
+ */
+export interface IncentiveOpportunity {
+  opportunityId: string;
+  accountId: string;
+  accountName: string;
+  /** What the opportunity is for, one line. */
+  description: string;
+  value: number;
+  currency: string;
+  stage: OpportunityStage;
+  /** Expected close. Past dates on an open stage are the point of the list. */
+  closeDate: IsoDate;
+}
+
+export type OpportunityStage =
+  | 'Qualify'
+  | 'Propose'
+  | 'Negotiate'
+  | 'Closed won'
+  | 'Closed lost';
+
+export const OPPORTUNITY_STAGES: OpportunityStage[] = [
+  'Qualify',
+  'Propose',
+  'Negotiate',
+  'Closed won',
+  'Closed lost',
+];
+
+/** A Business Development incentive. */
+export interface Incentive {
+  incentiveId: string;
+  title: string;
+  /** Free text — what the incentive is and who it is aimed at. */
+  overview: string;
+  /**
+   * Optional. Without one there is nothing to raise opportunities against, so
+   * the opportunities section explains that rather than showing an empty table.
+   */
+  campaignCode: string | null;
+  type: IncentiveType;
+  startDate: IsoDate;
+  /** Null means open-ended, which counts as active. */
+  endDate: IsoDate | null;
+  resources: IncentiveResource[];
+  /** Accounts nominated for this incentive. */
+  nominatedAccountIds: string[];
+  opportunities: IncentiveOpportunity[];
+  createdAt: string;
+  createdBy: string;
+}
+
+/** Payload written when a rep creates an incentive. */
+export interface IncentiveDraft {
+  title: string;
+  overview: string;
+  campaignCode: string | null;
+  type: IncentiveType;
+  startDate: IsoDate;
+  endDate: IsoDate | null;
+  nominatedAccountIds: string[];
+}
+
 /** Options for {@link AccountService.getNotifications}. */
 export interface NotificationQuery {
   /**
@@ -367,4 +515,10 @@ export interface AccountService {
    * always does.
    */
   getNotifications(options?: NotificationQuery): Promise<AppNotification[]>;
+
+  /** Every incentive, newest first. Active/historical is derived, not filtered here. */
+  getIncentives(): Promise<Incentive[]>;
+  getIncentive(incentiveId: string): Promise<Incentive | undefined>;
+  /** Third write path, alongside `saveAccountMonitoring` and `logMeeting`. */
+  createIncentive(draft: IncentiveDraft): Promise<Incentive>;
 }

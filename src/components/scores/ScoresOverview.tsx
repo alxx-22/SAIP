@@ -73,7 +73,7 @@ export function ScoresOverview({
             <motion.div
               key={score.key}
               variants={staggerItem(reduced)}
-              style={{ flex: '1 1 260px', display: 'flex' }}
+              style={{ flex: '1 1 230px', display: 'flex' }}
             >
               <ScoreCard score={score} index={i} />
             </motion.div>
@@ -97,16 +97,22 @@ function ScoresSkeleton() {
       {[0, 1, 2].map((i) => (
         <Box
           key={i}
-          pad="medium"
+          pad="small"
           round="medium"
           background="background-front"
           border={{ color: 'border-weak' }}
           gap="small"
-          style={{ flex: '1 1 260px', minWidth: 260 }}
+          style={{ flex: '1 1 230px', minWidth: 230 }}
         >
           <SkeletonBar height="20px" width="60%" />
-          <Box direction="row" align="center" gap="medium">
-            <SkeletonBar height="132px" width="132px" round="full" />
+          <Box direction="row" align="center" gap="small">
+            {/* Matches GAUGE_CSS_SIZE so the skeleton is the same height as the
+                card that replaces it and the page does not jump on load. */}
+            <SkeletonBar
+              height="clamp(76px, 11vh, 116px)"
+              width="clamp(76px, 11vh, 116px)"
+              round="full"
+            />
             <Box gap="xsmall" flex>
               <SkeletonBar height="18px" width="80%" />
               <SkeletonBar height="14px" width="60%" />

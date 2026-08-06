@@ -118,7 +118,10 @@ function AppearanceSection() {
         <Text size="small" weight={600} color="text-strong">
           Theme
         </Text>
-        <Box direction="row" gap="small" wrap>
+        {/* CSS gap — Grommet's spacer divs overlay controls on a wrapping row. */}
+        <div
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--hpe-spacing-small)' }}
+        >
           {MODES.map(({ id, label, hint, Icon }) => {
             const selected = mode === id;
             return (
@@ -163,7 +166,7 @@ function AppearanceSection() {
               </motion.button>
             );
           })}
-        </Box>
+        </div>
         {mode === 'auto' && (
           <Text size="xsmall" color="text-weak">
             Your device is currently set to {resolvedMode}.
@@ -179,7 +182,9 @@ function AppearanceSection() {
           Replaces the green throughout the app — gauges, highlights, the
           assistant and the active navigation marker.
         </Text>
-        <Box direction="row" gap="small" wrap>
+        <div
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--hpe-spacing-small)' }}
+        >
           {ACCENTS.map((option) => (
             <AccentSwatch
               key={option.id}
@@ -196,7 +201,7 @@ function AppearanceSection() {
               }
             />
           ))}
-        </Box>
+        </div>
       </Box>
     </Section>
   );

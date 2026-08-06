@@ -38,12 +38,7 @@ interface NavEntry {
 const PRIMARY: NavEntry[] = [
   { label: 'Home', to: '/', icon: Home },
   { label: 'Executive View', to: '/executive-view', icon: Analytics, placeholder: true },
-  {
-    label: 'Business Development',
-    to: '/business-development',
-    icon: Target,
-    placeholder: true,
-  },
+  { label: 'Business Development', to: '/business-development', icon: Target },
 ];
 
 /** Pinned to the bottom, away from the primary destinations. */

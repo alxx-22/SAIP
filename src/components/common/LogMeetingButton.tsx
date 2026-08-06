@@ -71,7 +71,21 @@ export function LogMeetingButton({
         background: disabled
           ? 'var(--hpe-color-background-disabled)'
           : 'var(--saip-accent)',
-        color: disabled ? 'var(--hpe-color-text-disabled)' : 'var(--saip-on-accent)',
+        /*
+          White, not `--saip-on-accent`, by explicit request.
+
+          Every other accent surface uses `--saip-on-accent`, which flips
+          between ink and white so the label always clears 4.5:1. This button
+          opts out and is always white, which reads as the primary action but
+          does mean the label is below AA on the lighter accents — 3.00:1 on
+          HPE Green, 3.19:1 on Amber. It clears AA on Blue, Purple, Plum and
+          Coral.
+
+          If that matters later, the fix is to darken the accent used for
+          BUTTON FILLS only (green-700 gives white 4.55:1, green-800 6.87:1)
+          rather than to reintroduce dark text here.
+        */
+        color: disabled ? 'var(--hpe-color-text-disabled)' : 'var(--hpe-base-color-white)',
       }}
     >
       {/*

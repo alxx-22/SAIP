@@ -51,6 +51,25 @@
 }
 
 /**
+ * Grommet renders a Box's `gap` as real spacer <div>s rather than CSS `gap`.
+ *
+ * In some layouts — a modal whose column gap sits beside a wrapping row of
+ * controls — those spacers end up painted OVER a neighbouring control. They are
+ * still hit-testable, so `document.elementFromPoint()` at the centre of the
+ * "Sales Play" chip returned the spacer, not the button, and the chip could not
+ * be clicked at all. It was reproducible and had nothing to do with z-index:
+ * the spacer is simply later in document order.
+ *
+ * A spacer exists purely to occupy space and never needs to receive input, so
+ * taking it out of hit-testing is safe everywhere and fixes the whole class of
+ * bug rather than the one instance. Grommet's class names are hashed, hence the
+ * attribute-substring selector.
+ */
+[class*='StyledBoxGap'] {
+  pointer-events: none;
+}
+
+/**
  * `min-height` rather than `height` so the app grows with its content and
  * scrolls with the document. See the note in main.tsx — a fixed-height app that
  * scrolls internally does not embed cleanly in a Power Pages template.
