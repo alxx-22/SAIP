@@ -158,6 +158,26 @@ That is deliberate: those records are the shape of the eventual tables, and the
 seed is the migration's starting content. When the app is wired to read from
 them, nothing on screen should change.
 
+Sections, questions, dropdowns and their options are all editable — renamed,
+reordered, added and (where safe) deleted.
+
+**Ids are shown but never editable.** `sec-proximity`, `mon-workshop`,
+`opt-meeting-place` are what the code, the notification deep-links and the
+database join on; renaming one would detach a stored answer from the question it
+answers. Labels are free to change, which is what anyone actually wants.
+
+**Deletes are guarded in the service, not just the UI**, because the rules are
+properties of the data:
+
+| Delete | Blocked when |
+| --- | --- |
+| Question section | it still holds questions — they would render nowhere |
+| Dropdown | a question points at it, **or** it is `codeDependent` |
+
+The second dropdown case is the one a UI-only guard would have missed: SLA tiers
+and opportunity stages back typed unions in the front end but are referenced by
+no *question*, so nothing on screen would have stopped them being deleted.
+
 **Not yet consumed.** The ribbons and the meeting form still use their TypeScript
 constants, so an edit in the admin portal does not change them yet. The portal
 says so in its own banner rather than only here. Wiring the consumers is the next

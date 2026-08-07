@@ -669,11 +669,23 @@ export interface AccountService {
   setUserStatus(userId: string, status: PortalUser['status']): Promise<PortalUser>;
 
   getQuestionSections(): Promise<QuestionSection[]>;
+  /** Creates when `sectionId` is unknown, updates when it is not. */
+  saveQuestionSection(section: QuestionSection): Promise<QuestionSection>;
+  /**
+   * Rejects while the section still holds questions. Deleting it silently would
+   * orphan every one of them, and a question with no section renders nowhere —
+   * a failure nobody would notice until a form came back empty.
+   */
+  deleteQuestionSection(sectionId: string): Promise<void>;
+
   getQuestions(): Promise<QuestionDefinition[]>;
   /** Creates when `questionId` is unknown, updates when it is not. */
   saveQuestion(question: QuestionDefinition): Promise<QuestionDefinition>;
   deleteQuestion(questionId: string): Promise<void>;
 
   getOptionSets(): Promise<OptionSet[]>;
+  /** Creates when `optionSetId` is unknown, updates when it is not. */
   saveOptionSet(optionSet: OptionSet): Promise<OptionSet>;
+  /** Rejects while any question still points at it, for the same reason. */
+  deleteOptionSet(optionSetId: string): Promise<void>;
 }

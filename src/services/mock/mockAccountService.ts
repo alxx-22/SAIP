@@ -78,6 +78,7 @@ const createdIncentives: Incentive[] = [];
  */
 const adminState = {
   users: structuredClone(MOCK_PORTAL_USERS) as PortalUser[],
+  sections: structuredClone(MOCK_QUESTION_SECTIONS) as QuestionSection[],
   questions: structuredClone(MOCK_QUESTIONS) as QuestionDefinition[],
   optionSets: structuredClone(MOCK_OPTION_SETS) as OptionSet[],
 };
@@ -282,7 +283,32 @@ export const mockAccountService: AccountService = {
   },
 
   async getQuestionSections(): Promise<QuestionSection[]> {
-    return delay(MOCK_QUESTION_SECTIONS, LATENCY.fast);
+    return delay(structuredClone(adminState.sections), LATENCY.fast);
+  },
+
+  async saveQuestionSection(section: QuestionSection): Promise<QuestionSection> {
+    const index = adminState.sections.findIndex(
+      (s) => s.sectionId === section.sectionId,
+    );
+    if (index === -1) {
+      adminState.sections.push(structuredClone(section));
+    } else {
+      adminState.sections[index] = structuredClone(section);
+    }
+    return delay(structuredClone(section), LATENCY.write);
+  },
+
+  async deleteQuestionSection(sectionId: string): Promise<void> {
+    // The guard lives here rather than only in the UI, because the rule is a
+    // property of the data: a question whose section is gone renders nowhere.
+    const held = adminState.questions.filter((q) => q.sectionId === sectionId);
+    if (held.length > 0) {
+      throw new Error(
+        `Cannot delete this section while it still holds ${held.length} question(s). Move or delete them first.`,
+      );
+    }
+    adminState.sections = adminState.sections.filter((s) => s.sectionId !== sectionId);
+    return delay(undefined, LATENCY.write);
   },
 
   async getQuestions(): Promise<QuestionDefinition[]> {
@@ -322,6 +348,31 @@ export const mockAccountService: AccountService = {
       adminState.optionSets[index] = structuredClone(optionSet);
     }
     return delay(structuredClone(optionSet), LATENCY.write);
+  },
+
+  async deleteOptionSet(optionSetId: string): Promise<void> {
+    const set = adminState.optionSets.find((o) => o.optionSetId === optionSetId);
+
+    // Two separate reasons a list cannot go, and they catch different cases.
+    // A question reference is visible in this screen; a CODE dependency is not —
+    // SLA tiers back a typed union and the contracts table, and nothing in the
+    // question list would have stopped that one being deleted.
+    if (set?.codeDependent) {
+      throw new Error(
+        `"${set.name}" is still matched by value in the front end — deleting it would break the screens that depend on those exact options. It can be removed once the app reads this list at runtime.`,
+      );
+    }
+
+    const used = adminState.questions.filter((q) => q.optionSetId === optionSetId);
+    if (used.length > 0) {
+      throw new Error(
+        `Cannot delete this dropdown while ${used.length} question(s) still use it. Point them at another list first.`,
+      );
+    }
+    adminState.optionSets = adminState.optionSets.filter(
+      (o) => o.optionSetId !== optionSetId,
+    );
+    return delay(undefined, LATENCY.write);
   },
 };
 

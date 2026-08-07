@@ -33,17 +33,46 @@ export function OptionSetsPanel() {
   const { reduced } = useAppMotion();
   const [refreshKey, setRefreshKey] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { data: optionSets, loading } = useAsync(
     () => service.getOptionSets(),
     [service, refreshKey],
   );
+  // Only needed to know which dropdowns are still referenced, so delete can say
+  // why it is unavailable instead of just failing.
+  const { data: questions } = useAsync(() => service.getQuestions(), [service, refreshKey]);
 
   async function save(next: OptionSet) {
     setSaving(true);
+    setError(null);
     await service.saveOptionSet(next);
     setSaving(false);
     setRefreshKey((k) => k + 1);
+  }
+
+  async function remove(optionSetId: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      await service.deleteOptionSet(optionSetId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    setSaving(false);
+    setRefreshKey((k) => k + 1);
+  }
+
+  async function addSet() {
+    await save({
+      optionSetId: `opt-${Date.now().toString(36)}`,
+      name: 'New dropdown',
+      description: '',
+      usage: '',
+      // Nothing in the code matches a list that did not exist a moment ago.
+      codeDependent: false,
+      options: [],
+    });
   }
 
   if (loading) {
@@ -52,13 +81,40 @@ export function OptionSetsPanel() {
 
   return (
     <Box gap="medium">
+      <FlexRow justify="between">
+        <Text size="small" color="text-weak">
+          Reusable lists. A choice question points at one of these rather than
+          carrying its own options.
+        </Text>
+        <AdminButton onClick={addSet} reduced={reduced} disabled={saving} tone="accent">
+          <Add size="small" />
+          Add dropdown
+        </AdminButton>
+      </FlexRow>
+
+      {error && (
+        <Box
+          pad="small"
+          round="small"
+          background="background-critical"
+          border={{ color: 'border-critical' }}
+          role="alert"
+        >
+          <Text size="small" color="text-strong">
+            {error}
+          </Text>
+        </Box>
+      )}
+
       {(optionSets ?? []).map((set) => (
         <OptionSetCard
           key={set.optionSetId}
           set={set}
           saving={saving}
           reduced={reduced}
+          usedBy={(questions ?? []).filter((q) => q.optionSetId === set.optionSetId).length}
           onSave={save}
+          onDelete={() => remove(set.optionSetId)}
         />
       ))}
     </Box>
@@ -69,14 +125,24 @@ function OptionSetCard({
   set,
   saving,
   reduced,
+  usedBy,
   onSave,
+  onDelete,
 }: {
   set: OptionSet;
   saving: boolean;
   reduced: boolean;
+  /** How many questions point at this list. Drives the delete guard. */
+  usedBy: number;
   onSave: (set: OptionSet) => void;
+  onDelete: () => void;
 }) {
   const sorted = [...set.options].sort((a, b) => a.order - b.order);
+  const [name, setName] = useState(set.name);
+  const [description, setDescription] = useState(set.description);
+  const [usage, setUsage] = useState(set.usage);
+  const headerDirty =
+    name !== set.name || description !== set.description || usage !== set.usage;
 
   function withOptions(options: OptionSetOption[]) {
     onSave({ ...set, options });
@@ -119,7 +185,9 @@ function OptionSetCard({
   return (
     <AdminPanel
       title={set.name}
-      description={`${set.description} Used in: ${set.usage}.`}
+      description={
+        set.usage ? `${set.description} Used in: ${set.usage}.` : set.description
+      }
       action={
         <AdminButton onClick={add} reduced={reduced} disabled={saving}>
           <Add size="small" />
@@ -127,6 +195,83 @@ function OptionSetCard({
         </AdminButton>
       }
     >
+      {/*
+        Editable header. `optionSetId` is fixed and shown, like every other id
+        here — questions point at it, so renaming it would detach them. The NAME
+        is free to change.
+      */}
+      <Box
+        gap="small"
+        pad={{ bottom: 'small' }}
+        border={{ side: 'bottom', color: 'border-weak' }}
+      >
+        <FlexRow justify="between" align="start">
+          <Box gap="xxsmall" style={{ flex: '1 1 340px', minWidth: 0 }}>
+            <AdminInput
+              value={name}
+              onChange={setName}
+              ariaLabel={`Name for ${set.optionSetId}`}
+              placeholder="Dropdown name"
+            />
+            <AdminInput
+              value={description}
+              onChange={setDescription}
+              ariaLabel={`Description for ${set.optionSetId}`}
+              placeholder="Description (optional)"
+            />
+            <AdminInput
+              value={usage}
+              onChange={setUsage}
+              ariaLabel={`Usage note for ${set.optionSetId}`}
+              placeholder="Where it is used (optional note)"
+            />
+          </Box>
+
+          <FlexRow gap="xsmall" align="start">
+            <AdminButton
+              onClick={onDelete}
+              /*
+                Two independent blocks:
+                  - a question points here, so its control would render nothing
+                  - the front end still matches these values by name, which no
+                    question reference would have revealed
+                Both are enforced in the service too; this only explains why.
+              */
+              disabled={saving || usedBy > 0 || set.codeDependent}
+              tone="danger"
+              reduced={reduced}
+              title={
+                set.codeDependent
+                  ? 'Still matched by value in the front end — removable once the app reads this list at runtime.'
+                  : usedBy > 0
+                    ? `Used by ${usedBy} question(s). Point them at another list first.`
+                    : 'Delete this dropdown.'
+              }
+            >
+              <Trash size="small" />
+            </AdminButton>
+          </FlexRow>
+        </FlexRow>
+
+        <FlexRow gap="small">
+          <IdChip id={set.optionSetId} />
+          <Text size="xsmall" color="text-weak">
+            {sorted.length} option{sorted.length === 1 ? '' : 's'} · used by {usedBy}{' '}
+            question{usedBy === 1 ? '' : 's'}
+          </Text>
+          {headerDirty && (
+            <AdminButton
+              onClick={() => onSave({ ...set, name, description, usage })}
+              tone="accent"
+              reduced={reduced}
+              disabled={saving}
+            >
+              Save dropdown
+            </AdminButton>
+          )}
+        </FlexRow>
+      </Box>
+
       {set.codeDependent && (
         <CodeDependentNote>
           The front end still matches these values by their exact text — colour
