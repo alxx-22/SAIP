@@ -105,6 +105,11 @@ src/
 scripts/
   sync-powerpages.mjs  copies dist/ into the site tree, with guard rails
 
+sql/                 ← Fabric SQL Database build (see sql/README.md)
+  000…070            schema, tables, views — run in order, all re-runnable
+  900_seed.sql       the migration's starting content, keyed to the front end
+  990_verify.sql     read-only PASS/FAIL checks
+
 powerpages/          ← the Power Pages site tree (pac pages download/upload)
   web-files/           saip-app.js + saip-app.css and their .webfile.yml records
   web-templates/       SAIP App Host — renders the whole document
@@ -241,8 +246,12 @@ no *question*, so nothing on screen would have stopped them being deleted.
 
 **Not yet consumed.** The ribbons and the meeting form still use their TypeScript
 constants, so an edit in the admin portal does not change them yet. The portal
-says so in its own banner rather than only here. Wiring the consumers is the next
-step, alongside the SQL build plan.
+says so in its own banner rather than only here.
+
+The database that backs all of this is built in **[`sql/`](sql/README.md)** — 22
+tables, seeded so that when the front end reads from them instead of its
+constants, nothing on screen should change. Wiring those consumers is the
+remaining step.
 
 ---
 
