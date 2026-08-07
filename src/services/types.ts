@@ -577,6 +577,16 @@ export interface QuestionDefinition {
    * visible "name TBC" marker wherever the question appears.
    */
   nameProvisional: boolean;
+  /**
+   * Things in the front end that depend on this question BY ID — a notification
+   * rule, a deep-link target, a derived figure. Empty when nothing does.
+   *
+   * This is what makes the admin integrity checks data-driven rather than a
+   * hardcoded list of ids in the UI. A question with entries here cannot be
+   * deleted, disabled, or have its input type changed, because something would
+   * silently stop working; its LABEL stays free to edit.
+   */
+  systemReferences: string[];
 }
 
 /** One selectable value in a dropdown. */

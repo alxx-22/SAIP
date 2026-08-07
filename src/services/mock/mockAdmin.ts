@@ -179,6 +179,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'mon-workshop',
@@ -191,6 +192,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: ['Overdue workshop notification'],
   },
   {
     questionId: 'mon-spend-review',
@@ -203,6 +205,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'mon-customer-visit',
@@ -215,6 +218,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'mon-performance-review',
@@ -227,6 +231,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'mon-exec-engagement',
@@ -241,6 +246,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     // Flagged in the brief as a working name. Renaming it here is exactly the
     // kind of change this portal exists to make without a deploy.
     nameProvisional: true,
+    systemReferences: [],
   },
   {
     questionId: 'mon-sponsor-review',
@@ -253,6 +259,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: true,
+    systemReferences: ['Executive sponsor review notification'],
   },
   {
     questionId: 'meet-date',
@@ -265,6 +272,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'meet-place',
@@ -277,6 +285,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: 'opt-meeting-place',
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'meet-subject',
@@ -289,6 +298,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'meet-comments',
@@ -301,6 +311,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: null,
     nameProvisional: false,
+    systemReferences: [],
   },
   {
     questionId: 'meet-tags',
@@ -313,6 +324,7 @@ export const MOCK_QUESTIONS: QuestionDefinition[] = [
     enabled: true,
     optionSetId: 'opt-meeting-tag',
     nameProvisional: false,
+    systemReferences: [],
   },
 ];
 

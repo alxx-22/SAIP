@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Text } from 'grommet';
 import { Add, Down, Trash, Up } from 'grommet-icons';
 import {
@@ -13,7 +13,16 @@ import {
 import { useAsync } from '@/hooks/useAsync';
 import { SkeletonRows } from '@/components/common/Skeleton';
 import { useAppMotion } from '@/motion/useAppMotion';
-import { AdminButton, AdminInput, AdminPanel, FlexRow, IdChip, Row } from './AdminShared';
+import {
+  AdminButton,
+  AdminInput,
+  AdminPanel,
+  FlexRow,
+  IdChip,
+  Row,
+  SaveBar,
+} from './AdminShared';
+import { validateSectionDraft } from './validation';
 
 /** Input types that need a dropdown behind them. */
 const CHOICE_TYPES: QuestionInputType[] = ['choice', 'multichoice'];
@@ -21,81 +30,36 @@ const CHOICE_TYPES: QuestionInputType[] = ['choice', 'multichoice'];
 /**
  * Question and feedback areas.
  *
- * Every question the app asks — the Account Monitoring dates, the meeting log
- * fields — becomes a record here instead of markup. Wording, help text, whether
- * something is required, the order it appears in and which dropdown feeds it
- * are all editable without touching the front end.
+ * Each SECTION is one editable card with a single Save at the bottom: its own
+ * title and description, every question inside it, and any deletions queued
+ * along the way. Nothing reaches the service until Save is pressed, so a
+ * half-typed label is never written and a reorder is one write rather than two.
  *
- * Ids are shown and NOT editable. They are what the code, the notification
- * deep-links and the database all join on, so a rename here would break the
- * link between a stored answer and the question it answers. Renaming the LABEL
- * is safe and is the thing people actually want.
+ * Ids are shown and never editable. They are what the code, the notification
+ * deep-links and the database all join on, so a rename would break the link
+ * between a stored answer and the question it answers. Renaming the LABEL is
+ * safe and is the thing people actually want.
  */
 export function QuestionsPanel() {
   const service = useAccountService();
   const { reduced } = useAppMotion();
   const [refreshKey, setRefreshKey] = useState(0);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { data: sections } = useAsync(
     () => service.getQuestionSections(),
     [service, refreshKey],
   );
-  const { data: optionSets } = useAsync(() => service.getOptionSets(), [service]);
+  const { data: optionSets } = useAsync(
+    () => service.getOptionSets(),
+    [service, refreshKey],
+  );
   const { data: questions, loading } = useAsync(
     () => service.getQuestions(),
     [service, refreshKey],
   );
 
-  const bySection = useMemo(() => {
-    const map = new Map<string, QuestionDefinition[]>();
-    for (const q of questions ?? []) {
-      const list = map.get(q.sectionId) ?? [];
-      list.push(q);
-      map.set(q.sectionId, list);
-    }
-    for (const list of map.values()) list.sort((a, b) => a.order - b.order);
-    return map;
-  }, [questions]);
-
-  async function save(question: QuestionDefinition) {
-    setSaving(true);
-    await service.saveQuestion(question);
-    setSaving(false);
-    setRefreshKey((k) => k + 1);
-  }
-
-  async function remove(questionId: string) {
-    setSaving(true);
-    await service.deleteQuestion(questionId);
-    setSaving(false);
-    setRefreshKey((k) => k + 1);
-  }
-
-  /** Swaps a question with its neighbour, so ordering is a two-record write. */
-  async function move(section: QuestionSection, question: QuestionDefinition, by: -1 | 1) {
-    const list = bySection.get(section.sectionId) ?? [];
-    const index = list.findIndex((q) => q.questionId === question.questionId);
-    const target = list[index + by];
-    if (!target) return;
-    setSaving(true);
-    await service.saveQuestion({ ...question, order: target.order });
-    await service.saveQuestion({ ...target, order: question.order });
-    setSaving(false);
-    setRefreshKey((k) => k + 1);
-  }
-
-  async function saveSection(section: QuestionSection) {
-    setSaving(true);
-    setError(null);
-    await service.saveQuestionSection(section);
-    setSaving(false);
-    setRefreshKey((k) => k + 1);
-  }
-
   async function deleteSection(sectionId: string) {
-    setSaving(true);
     setError(null);
     try {
       await service.deleteQuestionSection(sectionId);
@@ -104,57 +68,34 @@ export function QuestionsPanel() {
       // its message is better than a generic failure — it says what to do next.
       setError(e instanceof Error ? e.message : String(e));
     }
-    setSaving(false);
     setRefreshKey((k) => k + 1);
   }
 
   async function addSection() {
     const list = sections ?? [];
     const nextOrder = list.length ? Math.max(...list.map((s) => s.order)) + 1 : 1;
-    await saveSection({
+    await service.saveQuestionSection({
       sectionId: `sec-${Date.now().toString(36)}`,
       title: 'New section',
       description: '',
-      // Account Monitoring is where a new group of questions almost always
-      // belongs; the picker on the section lets it be moved.
       area: 'account-monitoring',
       order: nextOrder,
-      // Off until it has been named and filled — an empty titled section
-      // appearing on a live form would be worse than not having it.
+      // Off until it has been named and filled — an empty titled section on a
+      // live form would be worse than not having it.
       enabled: false,
     });
+    setRefreshKey((k) => k + 1);
   }
 
-  /** Swaps a section with its neighbour, matching how questions reorder. */
+  /** Section order is a two-record swap, applied immediately rather than drafted. */
   async function moveSection(section: QuestionSection, by: -1 | 1) {
     const ordered = [...(sections ?? [])].sort((a, b) => a.order - b.order);
     const index = ordered.findIndex((s) => s.sectionId === section.sectionId);
     const target = ordered[index + by];
     if (!target) return;
-    setSaving(true);
     await service.saveQuestionSection({ ...section, order: target.order });
     await service.saveQuestionSection({ ...target, order: section.order });
-    setSaving(false);
     setRefreshKey((k) => k + 1);
-  }
-
-  async function add(section: QuestionSection) {
-    const list = bySection.get(section.sectionId) ?? [];
-    const nextOrder = list.length ? Math.max(...list.map((q) => q.order)) + 1 : 1;
-    await save({
-      // Prefixed with the section so a new id reads like the seeded ones.
-      questionId: `${section.sectionId.replace(/^sec-/, '')}-q${Date.now().toString(36)}`,
-      sectionId: section.sectionId,
-      label: 'New question',
-      helpText: '',
-      inputType: 'date',
-      required: false,
-      order: nextOrder,
-      enabled: false,
-      optionSetId: null,
-      // A brand new question has not been agreed with anyone yet.
-      nameProvisional: true,
-    });
   }
 
   if (loading) {
@@ -170,7 +111,7 @@ export function QuestionsPanel() {
           Sections group the questions on a form. Both are records — renaming
           either one changes the app without a deploy.
         </Text>
-        <AdminButton onClick={addSection} reduced={reduced} disabled={saving} tone="accent">
+        <AdminButton onClick={addSection} reduced={reduced} tone="accent">
           <Add size="small" />
           Add section
         </AdminButton>
@@ -190,204 +131,299 @@ export function QuestionsPanel() {
         </Box>
       )}
 
-      {ordered.map((section, sectionIndex) => (
-        <AdminPanel
+      {ordered.map((section, index) => (
+        <SectionCard
           key={section.sectionId}
-          title={section.title}
-          description={section.description || 'No description.'}
-          action={
-            <AdminButton onClick={() => add(section)} reduced={reduced} disabled={saving}>
-              <Add size="small" />
-              Add question
-            </AdminButton>
-          }
-        >
-          <SectionHeaderEditor
-            section={section}
-            saving={saving}
-            reduced={reduced}
-            questionCount={(bySection.get(section.sectionId) ?? []).length}
-            isFirst={sectionIndex === 0}
-            isLast={sectionIndex === ordered.length - 1}
-            onSave={saveSection}
-            onDelete={() => deleteSection(section.sectionId)}
-            onMove={(by) => moveSection(section, by)}
-          />
-
-          <Box>
-            {(bySection.get(section.sectionId) ?? []).map((question, i, list) => (
-              <Row key={question.questionId} first={i === 0}>
-                <QuestionRow
-                  question={question}
-                  optionSets={optionSets ?? []}
-                  saving={saving}
-                  reduced={reduced}
-                  isFirst={i === 0}
-                  isLast={i === list.length - 1}
-                  onChange={save}
-                  onDelete={() => remove(question.questionId)}
-                  onMove={(by) => move(section, question, by)}
-                />
-              </Row>
-            ))}
-            {(bySection.get(section.sectionId) ?? []).length === 0 && (
-              <Text size="small" color="text-weak">
-                No questions in this section yet.
-              </Text>
-            )}
-          </Box>
-        </AdminPanel>
+          section={section}
+          questions={(questions ?? []).filter((q) => q.sectionId === section.sectionId)}
+          optionSets={optionSets ?? []}
+          reduced={reduced}
+          isFirst={index === 0}
+          isLast={index === ordered.length - 1}
+          onSaved={() => setRefreshKey((k) => k + 1)}
+          onDelete={() => deleteSection(section.sectionId)}
+          onMove={(by) => moveSection(section, by)}
+        />
       ))}
     </Box>
   );
 }
 
-/**
- * Editable section header.
- *
- * `sectionId` is shown but fixed, exactly as question ids are: it is what the
- * questions join on, so renaming it would detach every question in the group.
- * The TITLE is free to change, and that is the thing anyone actually wants.
- */
-function SectionHeaderEditor({
+/* ─── One section, edited as a whole ────────────────────────────────────── */
+
+function SectionCard({
   section,
-  saving,
+  questions,
+  optionSets,
   reduced,
-  questionCount,
   isFirst,
   isLast,
-  onSave,
+  onSaved,
   onDelete,
   onMove,
 }: {
   section: QuestionSection;
-  saving: boolean;
+  questions: QuestionDefinition[];
+  optionSets: OptionSet[];
   reduced: boolean;
-  questionCount: number;
   isFirst: boolean;
   isLast: boolean;
-  onSave: (s: QuestionSection) => void;
+  onSaved: () => void;
   onDelete: () => void;
   onMove: (by: -1 | 1) => void;
 }) {
-  const [title, setTitle] = useState(section.title);
-  const [description, setDescription] = useState(section.description);
-  const dirty = title !== section.title || description !== section.description;
+  const service = useAccountService();
+
+  const original = useMemo(
+    () => [...questions].sort((a, b) => a.order - b.order),
+    [questions],
+  );
+
+  const [draftSection, setDraftSection] = useState(section);
+  const [draftQuestions, setDraftQuestions] = useState(original);
+  const [deleted, setDeleted] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Re-seed whenever the saved records change underneath.
+  useEffect(() => {
+    setDraftSection(section);
+    setDraftQuestions(original);
+    setDeleted([]);
+  }, [section, original]);
+
+  const dirty =
+    JSON.stringify(draftSection) !== JSON.stringify(section) ||
+    JSON.stringify(draftQuestions) !== JSON.stringify(original) ||
+    deleted.length > 0;
+
+  const issues = useMemo(
+    () =>
+      dirty
+        ? validateSectionDraft(
+            draftSection,
+            draftQuestions,
+            original,
+            optionSets,
+            deleted,
+          )
+        : [],
+    [dirty, draftSection, draftQuestions, original, optionSets, deleted],
+  );
+
+  const sorted = [...draftQuestions].sort((a, b) => a.order - b.order);
+
+  function patchSection(next: Partial<QuestionSection>) {
+    setSaved(false);
+    setDraftSection((d) => ({ ...d, ...next }));
+  }
+
+  function patchQuestion(questionId: string, next: Partial<QuestionDefinition>) {
+    setSaved(false);
+    setDraftQuestions((list) =>
+      list.map((q) => (q.questionId === questionId ? { ...q, ...next } : q)),
+    );
+  }
+
+  function moveQuestion(questionId: string, by: -1 | 1) {
+    const index = sorted.findIndex((q) => q.questionId === questionId);
+    const target = sorted[index + by];
+    if (!target) return;
+    const current = sorted[index];
+    setSaved(false);
+    setDraftQuestions((list) =>
+      list.map((q) => {
+        if (q.questionId === current.questionId) return { ...q, order: target.order };
+        if (q.questionId === target.questionId) return { ...q, order: current.order };
+        return q;
+      }),
+    );
+  }
+
+  function addQuestion() {
+    const nextOrder = sorted.length ? Math.max(...sorted.map((q) => q.order)) + 1 : 1;
+    setSaved(false);
+    setDraftQuestions((list) => [
+      ...list,
+      {
+        // Prefixed with the section so a new id reads like the seeded ones.
+        questionId: `${section.sectionId.replace(/^sec-/, '')}-q${Date.now().toString(36)}`,
+        sectionId: section.sectionId,
+        label: '',
+        helpText: '',
+        inputType: 'date',
+        required: false,
+        order: nextOrder,
+        enabled: false,
+        optionSetId: null,
+        // Nothing new has been agreed with anyone yet.
+        nameProvisional: true,
+        systemReferences: [],
+      },
+    ]);
+  }
+
+  function removeQuestion(questionId: string) {
+    setSaved(false);
+    // A question that was never saved just disappears; an existing one is queued
+    // for deletion so validation can warn about the answers it strands.
+    const existed = original.some((q) => q.questionId === questionId);
+    setDraftQuestions((list) => list.filter((q) => q.questionId !== questionId));
+    if (existed) setDeleted((d) => [...d, questionId]);
+  }
+
+  async function save() {
+    setSaving(true);
+    await service.saveQuestionSection({
+      ...draftSection,
+      title: draftSection.title.trim(),
+      description: draftSection.description.trim(),
+    });
+    for (const question of draftQuestions) {
+      await service.saveQuestion({
+        ...question,
+        label: question.label.trim(),
+        helpText: question.helpText.trim(),
+      });
+    }
+    for (const questionId of deleted) {
+      await service.deleteQuestion(questionId);
+    }
+    setSaving(false);
+    setSaved(true);
+    setDeleted([]);
+    onSaved();
+  }
 
   return (
-    <Box
-      gap="small"
-      pad={{ bottom: 'small' }}
-      border={{ side: 'bottom', color: 'border-weak' }}
+    <AdminPanel
+      title={section.title}
+      description={section.description || 'No description.'}
+      action={
+        <AdminButton onClick={addQuestion} reduced={reduced} disabled={saving}>
+          <Add size="small" />
+          Add question
+        </AdminButton>
+      }
     >
-      <FlexRow justify="between" align="start">
-        <Box gap="xxsmall" style={{ flex: '1 1 340px', minWidth: 0 }}>
-          <AdminInput
-            value={title}
-            onChange={setTitle}
-            ariaLabel={`Section title for ${section.sectionId}`}
-            placeholder="Section title"
-          />
-          <AdminInput
-            value={description}
-            onChange={setDescription}
-            ariaLabel={`Section description for ${section.sectionId}`}
-            placeholder="Description (optional)"
-          />
-        </Box>
+      <Box
+        gap="small"
+        pad={{ bottom: 'small' }}
+        border={{ side: 'bottom', color: 'border-weak' }}
+      >
+        <FlexRow justify="between" align="start">
+          <Box gap="xxsmall" style={{ flex: '1 1 340px', minWidth: 0 }}>
+            <AdminInput
+              value={draftSection.title}
+              onChange={(title) => patchSection({ title })}
+              ariaLabel={`Section title for ${section.sectionId}`}
+              placeholder="Section title"
+            />
+            <AdminInput
+              value={draftSection.description}
+              onChange={(description) => patchSection({ description })}
+              ariaLabel={`Section description for ${section.sectionId}`}
+              placeholder="Description (optional)"
+            />
+          </Box>
 
-        <FlexRow gap="xsmall" align="start">
-          <AdminButton
-            onClick={() => onMove(-1)}
-            disabled={isFirst || saving}
-            reduced={reduced}
-            title="Move section up"
-          >
-            <Up size="small" />
-          </AdminButton>
-          <AdminButton
-            onClick={() => onMove(1)}
-            disabled={isLast || saving}
-            reduced={reduced}
-            title="Move section down"
-          >
-            <Down size="small" />
-          </AdminButton>
-          <AdminButton
-            onClick={onDelete}
-            // Blocked while it still holds questions — deleting would leave them
-            // rendering nowhere. The service enforces this too.
-            disabled={saving || questionCount > 0}
-            tone="danger"
-            reduced={reduced}
-            title={
-              questionCount > 0
-                ? `Move or delete this section's ${questionCount} question(s) first.`
-                : 'Delete this empty section.'
-            }
-          >
-            <Trash size="small" />
-          </AdminButton>
+          <FlexRow gap="xsmall" align="start">
+            <AdminButton
+              onClick={() => onMove(-1)}
+              disabled={isFirst || saving || dirty}
+              reduced={reduced}
+              title={dirty ? 'Save or discard your changes first.' : 'Move section up'}
+            >
+              <Up size="small" />
+            </AdminButton>
+            <AdminButton
+              onClick={() => onMove(1)}
+              disabled={isLast || saving || dirty}
+              reduced={reduced}
+              title={dirty ? 'Save or discard your changes first.' : 'Move section down'}
+            >
+              <Down size="small" />
+            </AdminButton>
+            <AdminButton
+              onClick={onDelete}
+              // Blocked while it still holds questions — they would render
+              // nowhere. The service enforces this too.
+              disabled={saving || original.length > 0}
+              tone="danger"
+              reduced={reduced}
+              title={
+                original.length > 0
+                  ? `Move or delete this section's ${original.length} question(s) first.`
+                  : 'Delete this empty section.'
+              }
+            >
+              <Trash size="small" />
+            </AdminButton>
+          </FlexRow>
         </FlexRow>
-      </FlexRow>
 
-      <FlexRow gap="small">
-        <IdChip id={section.sectionId} />
-
-        <Select
-          ariaLabel={`Area for ${section.sectionId}`}
-          value={section.area}
-          onChange={(v) =>
-            onSave({
-              ...section,
-              title,
-              description,
-              area: v as QuestionSection['area'],
-            })
-          }
-          options={[
-            { value: 'account-monitoring', label: 'Account Monitoring' },
-            { value: 'meeting-log', label: 'Meeting log' },
-          ]}
-        />
-
-        <label
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: '0.75rem',
-            color: 'var(--hpe-color-text-strong)',
-            cursor: 'pointer',
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={section.enabled}
-            disabled={saving}
-            onChange={(e) =>
-              onSave({ ...section, title, description, enabled: e.target.checked })
-            }
+        <FlexRow gap="small">
+          <IdChip id={section.sectionId} />
+          <Select
+            ariaLabel={`Area for ${section.sectionId}`}
+            value={draftSection.area}
+            onChange={(v) => patchSection({ area: v as QuestionSection['area'] })}
+            options={[
+              { value: 'account-monitoring', label: 'Account Monitoring' },
+              { value: 'meeting-log', label: 'Meeting log' },
+            ]}
           />
-          Shown
-        </label>
-
-        <Text size="xsmall" color="text-weak">
-          {questionCount} question{questionCount === 1 ? '' : 's'}
-        </Text>
-
-        {dirty && (
-          <AdminButton
-            onClick={() => onSave({ ...section, title, description })}
-            tone="accent"
-            reduced={reduced}
+          <Toggle
+            label="Shown"
+            checked={draftSection.enabled}
             disabled={saving}
-          >
-            Save section
-          </AdminButton>
+            onChange={(enabled) => patchSection({ enabled })}
+          />
+          <Text size="xsmall" color="text-weak">
+            {sorted.length} question{sorted.length === 1 ? '' : 's'}
+          </Text>
+        </FlexRow>
+      </Box>
+
+      <Box>
+        {sorted.map((question, i) => (
+          <Row key={question.questionId} first={i === 0}>
+            <QuestionRow
+              question={question}
+              optionSets={optionSets}
+              saving={saving}
+              reduced={reduced}
+              isFirst={i === 0}
+              isLast={i === sorted.length - 1}
+              onPatch={(next) => patchQuestion(question.questionId, next)}
+              onRemove={() => removeQuestion(question.questionId)}
+              onMove={(by) => moveQuestion(question.questionId, by)}
+            />
+          </Row>
+        ))}
+        {sorted.length === 0 && (
+          <Text size="small" color="text-weak">
+            No questions in this section yet.
+          </Text>
         )}
-      </FlexRow>
-    </Box>
+      </Box>
+
+      <SaveBar
+        issues={issues}
+        dirty={dirty}
+        saving={saving}
+        saved={saved}
+        reduced={reduced}
+        onSave={save}
+        onDiscard={() => {
+          setDraftSection(section);
+          setDraftQuestions(original);
+          setDeleted([]);
+          setSaved(false);
+        }}
+        saveLabel="Save section"
+      />
+    </AdminPanel>
   );
 }
 
@@ -398,8 +434,8 @@ function QuestionRow({
   reduced,
   isFirst,
   isLast,
-  onChange,
-  onDelete,
+  onPatch,
+  onRemove,
   onMove,
 }: {
   question: QuestionDefinition;
@@ -408,27 +444,26 @@ function QuestionRow({
   reduced: boolean;
   isFirst: boolean;
   isLast: boolean;
-  onChange: (q: QuestionDefinition) => void;
-  onDelete: () => void;
+  onPatch: (next: Partial<QuestionDefinition>) => void;
+  onRemove: () => void;
   onMove: (by: -1 | 1) => void;
 }) {
-  const [label, setLabel] = useState(question.label);
-  const [helpText, setHelpText] = useState(question.helpText);
   const needsOptions = CHOICE_TYPES.includes(question.inputType);
+  const locked = question.systemReferences.length > 0;
 
   return (
     <Box gap="small">
       <FlexRow justify="between" align="start">
         <Box gap="xxsmall" style={{ flex: '1 1 340px', minWidth: 0 }}>
           <AdminInput
-            value={label}
-            onChange={setLabel}
+            value={question.label}
+            onChange={(label) => onPatch({ label })}
             ariaLabel={`Label for ${question.questionId}`}
             placeholder="Question label"
           />
           <AdminInput
-            value={helpText}
-            onChange={setHelpText}
+            value={question.helpText}
+            onChange={(helpText) => onPatch({ helpText })}
             ariaLabel={`Help text for ${question.questionId}`}
             placeholder="Help text (optional)"
           />
@@ -452,11 +487,15 @@ function QuestionRow({
             <Down size="small" />
           </AdminButton>
           <AdminButton
-            onClick={onDelete}
+            onClick={onRemove}
             disabled={saving}
             tone="danger"
             reduced={reduced}
-            title="Delete this question. Answers already stored against it are orphaned — disable it instead if you only want it off the form."
+            title={
+              locked
+                ? `Blocked on save — ${question.systemReferences.join(', ')} depends on this.`
+                : 'Remove this question. Answers stored against it are orphaned.'
+            }
           >
             <Trash size="small" />
           </AdminButton>
@@ -466,15 +505,32 @@ function QuestionRow({
       <FlexRow gap="small">
         <IdChip id={question.questionId} />
 
+        {locked && (
+          <span
+            title={`Depended on by: ${question.systemReferences.join(', ')}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '1px 6px',
+              borderRadius: 'var(--hpe-radius-xsmall)',
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              background: 'var(--hpe-color-background-warning)',
+              color: 'var(--hpe-color-text-strong)',
+              border: '1px solid var(--hpe-color-border-warning)',
+            }}
+          >
+            In use by the app
+          </span>
+        )}
+
         <Select
           ariaLabel={`Input type for ${question.questionId}`}
           value={question.inputType}
           onChange={(v) => {
             const inputType = v as QuestionInputType;
-            onChange({
-              ...question,
-              label,
-              helpText,
+            onPatch({
               inputType,
               // Moving away from a choice type must clear the dropdown, or the
               // record keeps a dangling reference that means nothing.
@@ -493,8 +549,11 @@ function QuestionRow({
           <Select
             ariaLabel={`Dropdown for ${question.questionId}`}
             value={question.optionSetId ?? ''}
-            onChange={(v) => onChange({ ...question, label, helpText, optionSetId: v })}
-            options={optionSets.map((o) => ({ value: o.optionSetId, label: o.name }))}
+            onChange={(optionSetId) => onPatch({ optionSetId })}
+            options={[
+              { value: '', label: 'Choose a list…' },
+              ...optionSets.map((o) => ({ value: o.optionSetId, label: o.name })),
+            ]}
           />
         )}
 
@@ -502,33 +561,20 @@ function QuestionRow({
           label="Required"
           checked={question.required}
           disabled={saving}
-          onChange={(required) => onChange({ ...question, label, helpText, required })}
+          onChange={(required) => onPatch({ required })}
         />
         <Toggle
           label="Shown"
           checked={question.enabled}
           disabled={saving}
-          onChange={(enabled) => onChange({ ...question, label, helpText, enabled })}
+          onChange={(enabled) => onPatch({ enabled })}
         />
         <Toggle
           label="Name TBC"
           checked={question.nameProvisional}
           disabled={saving}
-          onChange={(nameProvisional) =>
-            onChange({ ...question, label, helpText, nameProvisional })
-          }
+          onChange={(nameProvisional) => onPatch({ nameProvisional })}
         />
-
-        {(label !== question.label || helpText !== question.helpText) && (
-          <AdminButton
-            onClick={() => onChange({ ...question, label, helpText })}
-            tone="accent"
-            reduced={reduced}
-            disabled={saving}
-          >
-            Save wording
-          </AdminButton>
-        )}
       </FlexRow>
     </Box>
   );

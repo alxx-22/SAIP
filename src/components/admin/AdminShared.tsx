@@ -1,6 +1,7 @@
 import { Box, Text } from 'grommet';
 import { motion } from 'framer-motion';
 import { duration, easing } from '@/motion/tokens';
+import { canSave, type Issue } from './validation';
 
 /**
  * Small shared pieces for the admin panels, so the three of them look like one
@@ -193,6 +194,118 @@ export function CodeDependentNote({ children }: { children: React.ReactNode }) {
       <Text size="xsmall" color="text-strong">
         {children}
       </Text>
+    </Box>
+  );
+}
+
+/**
+ * Save bar pinned to the bottom of an editable card.
+ *
+ * Edits are held as a local draft until this is pressed — nothing reaches the
+ * service on a keystroke. Errors block the save and are listed in full, because
+ * "Save is disabled" with no reason is the most frustrating possible state.
+ * Warnings are listed too but do not block: they describe consequences for
+ * existing data, which is the admin's call to make.
+ */
+export function SaveBar({
+  issues,
+  dirty,
+  saving,
+  saved,
+  reduced,
+  onSave,
+  onDiscard,
+  saveLabel,
+}: {
+  issues: Issue[];
+  dirty: boolean;
+  saving: boolean;
+  /** Briefly true after a successful write, so the click has a visible result. */
+  saved: boolean;
+  reduced: boolean;
+  onSave: () => void;
+  onDiscard: () => void;
+  saveLabel: string;
+}) {
+  const errors = issues.filter((i) => i.level === 'error');
+  const warnings = issues.filter((i) => i.level === 'warning');
+  // One definition of "is this saveable", shared with anything else that asks.
+  const blocked = !canSave(issues);
+
+  // A clean, unchanged card shows nothing at all — a permanent disabled Save on
+  // every section would be noise.
+  if (!dirty && !saved) return null;
+
+  return (
+    <Box
+      gap="small"
+      pad={{ top: 'small' }}
+      border={{ side: 'top', color: 'border-weak' }}
+    >
+      {errors.length > 0 && (
+        <Box
+          pad="small"
+          round="small"
+          background="background-critical"
+          border={{ color: 'border-critical' }}
+          gap="xxsmall"
+          role="alert"
+        >
+          <Text size="xsmall" weight={600} color="text-strong">
+            {errors.length === 1
+              ? 'This change cannot be saved:'
+              : `${errors.length} things stop this being saved:`}
+          </Text>
+          {errors.map((issue, i) => (
+            <Text key={i} size="xsmall" color="text-strong">
+              • {issue.message}
+            </Text>
+          ))}
+        </Box>
+      )}
+
+      {warnings.length > 0 && (
+        <Box
+          pad="small"
+          round="small"
+          background="background-warning"
+          border={{ color: 'border-warning' }}
+          gap="xxsmall"
+        >
+          <Text size="xsmall" weight={600} color="text-strong">
+            Saving anyway will:
+          </Text>
+          {warnings.map((issue, i) => (
+            <Text key={i} size="xsmall" color="text-strong">
+              • {issue.message}
+            </Text>
+          ))}
+        </Box>
+      )}
+
+      <FlexRow justify="end" gap="small">
+        {saved && !dirty && (
+          <Text size="xsmall" color="foreground-ok" role="status">
+            Saved
+          </Text>
+        )}
+        {dirty && (
+          <>
+            <AdminButton onClick={onDiscard} reduced={reduced} disabled={saving}>
+              Discard
+            </AdminButton>
+            <AdminButton
+              onClick={onSave}
+              reduced={reduced}
+              disabled={saving || blocked}
+              tone="accent"
+              title={blocked ? 'Fix the errors above first.' : undefined}
+            >
+              {saving ? 'Saving…' : saveLabel}
+            </AdminButton>
+          </>
+        )}
+      </FlexRow>
     </Box>
   );
 }

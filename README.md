@@ -166,6 +166,28 @@ reordered, added and (where safe) deleted.
 database join on; renaming one would detach a stored answer from the question it
 answers. Labels are free to change, which is what anyone actually wants.
 
+**Edits are a draft until saved.** Each section and each dropdown is one card
+with a single Save at the bottom — nothing reaches the service on a keystroke.
+The bar appears only once something has changed, lists every reason a save is
+blocked, and offers Discard.
+
+Rules live in `components/admin/validation.ts` as pure functions, so they can be
+reasoned about and eventually reused by whatever enforces the same thing
+server-side. Two levels, and the difference is deliberate:
+
+- **error** blocks the save — the change would break the app or make the record
+  meaningless (blank title, duplicate option labels, a dropdown question with no
+  list, hiding a question a notification depends on, renaming an option on a
+  `codeDependent` list).
+- **warning** goes ahead — it only affects how existing *data* reads (deleting a
+  question orphans its answers, making a field required leaves old records
+  incomplete). An admin may make a mess of their own labels; they may not detach
+  a notification from the question that feeds it.
+
+`QuestionDefinition.systemReferences` is what makes that data-driven rather than
+a hardcoded list of ids in the UI: a question naming a dependency there cannot be
+hidden, retyped or deleted, and the app shows an "In use by the app" badge on it.
+
 **Deletes are guarded in the service, not just the UI**, because the rules are
 properties of the data:
 
