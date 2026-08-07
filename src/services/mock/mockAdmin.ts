@@ -39,51 +39,99 @@ export const MOCK_WEB_ROLES: WebRole[] = [
     roleId: 'role-admin',
     name: 'SAIP Administrator',
     description:
-      'Full access, including this portal. Can change questions, dropdowns and who holds which role.',
+      'Full access, including this portal. Held alongside a job role rather than instead of one — an administrator is still an account manager or a BD lead.',
     isAdministrator: true,
     isSystemManaged: false,
+    capabilities: [
+      'home.view',
+      'accounts.view',
+      'accounts.edit',
+      'meetings.log',
+      'bizdev.view',
+      'bizdev.manage',
+      'executive.view',
+      'team.view',
+      'admin.access',
+    ],
   },
   {
-    roleId: 'role-sales',
+    roleId: 'role-account-manager',
     name: 'Account Manager',
     description:
-      'The default role. Sees their own aligned accounts, logs meetings and maintains monitoring dates.',
+      'The default job role. Works their own aligned accounts, logs meetings and keeps the monitoring dates current.',
     isAdministrator: false,
     isSystemManaged: false,
+    capabilities: [
+      'home.view',
+      'accounts.view',
+      'accounts.edit',
+      'meetings.log',
+      'bizdev.view',
+    ],
   },
   {
     roleId: 'role-bizdev',
     name: 'Business Development',
-    description: 'Creates and manages incentives, and nominates accounts to them.',
+    description:
+      'Builds and runs incentives: creates them, nominates accounts, and assigns them to people or roles.',
     isAdministrator: false,
     isSystemManaged: false,
+    capabilities: [
+      'home.view',
+      'accounts.view',
+      'meetings.log',
+      'bizdev.view',
+      'bizdev.manage',
+    ],
   },
   {
-    roleId: 'role-exec',
-    name: 'Executive',
+    roleId: 'role-line-manager',
+    name: 'Line Manager',
     description:
-      'Read-only across every account. Intended for the Executive View once it is built.',
+      'Everything an Account Manager can do, plus visibility of the accounts held by the people reporting to them.',
     isAdministrator: false,
     isSystemManaged: false,
+    capabilities: [
+      'home.view',
+      'accounts.view',
+      'accounts.edit',
+      'meetings.log',
+      'bizdev.view',
+      'team.view',
+    ],
+  },
+  {
+    roleId: 'role-executive-view',
+    name: 'Executive View',
+    description:
+      'Read-only reporting across every account. No editing, no meeting logging.',
+    isAdministrator: false,
+    isSystemManaged: false,
+    capabilities: ['home.view', 'accounts.view', 'executive.view'],
   },
   {
     roleId: 'role-authenticated',
     name: 'Authenticated Users',
     description:
-      'Applied to everyone who signs in. Created and maintained by Power Pages.',
+      'Applied to everyone who signs in. Created and maintained by Power Pages, so it cannot be edited or deleted here.',
     isAdministrator: false,
     isSystemManaged: true,
+    capabilities: ['home.view'],
   },
 ];
 
 /* ─── Users ─────────────────────────────────────────────────────────────── */
 
+/**
+ * `userId` on the first row matches MOCK_CURRENT_USER, so "My incentives"
+ * resolves against a real person rather than an id nothing else knows about.
+ */
 export const MOCK_PORTAL_USERS: PortalUser[] = [
   {
-    userId: 'user-001',
+    userId: 'usr-sample-001',
     displayName: 'Sample User',
     email: 'sample.user@example.invalid',
-    roleIds: ['role-authenticated', 'role-sales', 'role-admin'],
+    roleIds: ['role-authenticated', 'role-account-manager', 'role-admin'],
     status: 'active',
     lastSignIn: timestampFromNow(0),
   },
@@ -99,7 +147,7 @@ export const MOCK_PORTAL_USERS: PortalUser[] = [
     userId: 'user-003',
     displayName: 'Daniel Okafor',
     email: 'daniel.okafor@example.invalid',
-    roleIds: ['role-authenticated', 'role-sales'],
+    roleIds: ['role-authenticated', 'role-account-manager'],
     status: 'active',
     lastSignIn: timestampFromNow(-3),
   },
@@ -107,7 +155,7 @@ export const MOCK_PORTAL_USERS: PortalUser[] = [
     userId: 'user-004',
     displayName: 'Marta Lindqvist',
     email: 'marta.lindqvist@example.invalid',
-    roleIds: ['role-authenticated', 'role-sales', 'role-bizdev'],
+    roleIds: ['role-authenticated', 'role-line-manager'],
     status: 'active',
     lastSignIn: timestampFromNow(-6),
   },
@@ -115,7 +163,7 @@ export const MOCK_PORTAL_USERS: PortalUser[] = [
     userId: 'user-005',
     displayName: 'Tom Whelan',
     email: 'tom.whelan@example.invalid',
-    roleIds: ['role-authenticated', 'role-exec'],
+    roleIds: ['role-authenticated', 'role-executive-view'],
     status: 'active',
     lastSignIn: timestampFromNow(-11),
   },

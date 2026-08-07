@@ -4,7 +4,8 @@ import { UserAdmin } from 'grommet-icons';
 import { motion } from 'framer-motion';
 import { useAppMotion } from '@/motion/useAppMotion';
 import { duration, easing } from '@/motion/tokens';
-import { UsersRolesPanel } from '@/components/admin/UsersRolesPanel';
+import { UsersPanel } from '@/components/admin/UsersPanel';
+import { RolesPanel } from '@/components/admin/RolesPanel';
 import { QuestionsPanel } from '@/components/admin/QuestionsPanel';
 import { OptionSetsPanel } from '@/components/admin/OptionSetsPanel';
 
@@ -33,10 +34,11 @@ import { OptionSetsPanel } from '@/components/admin/OptionSetsPanel';
  * renders.
  */
 
-type AdminTab = 'users' | 'questions' | 'dropdowns';
+type AdminTab = 'users' | 'roles' | 'questions' | 'dropdowns';
 
 const TABS: { id: AdminTab; label: string; hint: string }[] = [
-  { id: 'users', label: 'Users & roles', hint: 'Who can sign in, and what they can reach' },
+  { id: 'users', label: 'Users', hint: 'Who can sign in, and which role they hold' },
+  { id: 'roles', label: 'Roles', hint: 'What each role is allowed to reach' },
   { id: 'questions', label: 'Questions', hint: 'The fields the app asks for' },
   { id: 'dropdowns', label: 'Dropdowns', hint: 'The lists those fields choose from' },
 ];
@@ -130,7 +132,8 @@ export function AdminPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: duration.fast, ease: easing.out }}
       >
-        {tab === 'users' && <UsersRolesPanel />}
+        {tab === 'users' && <UsersPanel />}
+        {tab === 'roles' && <RolesPanel />}
         {tab === 'questions' && <QuestionsPanel />}
         {tab === 'dropdowns' && <OptionSetsPanel />}
       </motion.div>

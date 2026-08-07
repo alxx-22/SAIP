@@ -451,6 +451,21 @@ export interface Incentive {
   resources: IncentiveResource[];
   /** Accounts nominated for this incentive. */
   nominatedAccountIds: string[];
+  /**
+   * People this incentive is assigned TO — the ones expected to complete it.
+   *
+   * Distinct from `nominatedAccountIds`, and the difference matters: an account
+   * is a target of the campaign, a person is responsible for acting on it. A
+   * Sales Training incentive typically has no accounts at all and several
+   * assignees.
+   */
+  assignedUserIds: string[];
+  /**
+   * Roles this incentive is assigned to. Everyone holding the role picks it up,
+   * including people who join it later — which is the point of assigning by role
+   * rather than listing names.
+   */
+  assignedRoleIds: string[];
   opportunities: IncentiveOpportunity[];
   createdAt: string;
   createdBy: string;
@@ -465,6 +480,8 @@ export interface IncentiveDraft {
   startDate: IsoDate;
   endDate: IsoDate | null;
   nominatedAccountIds: string[];
+  assignedUserIds: string[];
+  assignedRoleIds: string[];
 }
 
 /* ─── Admin: configuration held as data ─────────────────────────────────── */
@@ -488,15 +505,60 @@ export interface IncentiveDraft {
  * the consumers to it is the next step, alongside the SQL build plan.
  */
 
+/**
+ * What a role is allowed to reach.
+ *
+ * A closed catalogue rather than free text: every capability names a real
+ * surface in the app, so a role's permissions can be read as a sentence and
+ * nothing can be granted that does not exist. Adding a capability here is the
+ * deliberate act of adding something to protect.
+ *
+ * In Power Pages each of these maps to a set of table permissions attached to
+ * the web role — the UI check is a convenience, the table permission is the
+ * actual gate.
+ */
+export type Capability =
+  | 'home.view'
+  | 'accounts.view'
+  | 'accounts.edit'
+  | 'meetings.log'
+  | 'bizdev.view'
+  | 'bizdev.manage'
+  | 'executive.view'
+  | 'team.view'
+  | 'admin.access';
+
+export const CAPABILITIES: {
+  id: Capability;
+  label: string;
+  description: string;
+}[] = [
+  { id: 'home.view', label: 'Home', description: 'The landing page and their own portfolio scores.' },
+  { id: 'accounts.view', label: 'View accounts', description: 'Open Account Focus for accounts aligned to them.' },
+  { id: 'accounts.edit', label: 'Edit account monitoring', description: 'Maintain the relationship dates on an account.' },
+  { id: 'meetings.log', label: 'Log meetings', description: 'Record a customer meeting against an account.' },
+  { id: 'bizdev.view', label: 'View Business Development', description: 'See incentives and the opportunities raised against them.' },
+  { id: 'bizdev.manage', label: 'Manage incentives', description: 'Create incentives, nominate accounts and assign them to people.' },
+  { id: 'executive.view', label: 'Executive View', description: 'Read-only reporting across every account.' },
+  { id: 'team.view', label: "View team's accounts", description: "See the accounts of everyone reporting to them, not just their own." },
+  { id: 'admin.access', label: 'Admin portal', description: 'Change questions, dropdowns, users and roles.' },
+];
+
 /** A portal web role. Maps to `adx_webrole` in Power Pages. */
 export interface WebRole {
   roleId: string;
   name: string;
   description: string;
-  /** Administrators can reach the admin portal. Exactly one role should have it. */
+  /**
+   * Administrators can reach the admin portal. Kept as its own flag rather than
+   * just the `admin.access` capability because it is the one permission the
+   * Users table surfaces directly, as a tickbox.
+   */
   isAdministrator: boolean;
   /** True for roles Power Pages creates and manages itself — not deletable. */
   isSystemManaged: boolean;
+  /** What this role can reach. */
+  capabilities: Capability[];
 }
 
 /** Someone who can sign in. Maps to a `contact` with web roles attached. */
@@ -504,6 +566,14 @@ export interface PortalUser {
   userId: string;
   displayName: string;
   email: string;
+  /**
+   * Every role held, including the system one and the administrator role.
+   *
+   * The Users table presents this as an admin tickbox plus a single job-role
+   * dropdown, because that is how people think about it — but the underlying
+   * shape stays a set, which is what Dataverse actually stores and what lets a
+   * role be granted outside those two controls later.
+   */
   roleIds: string[];
   status: 'active' | 'disabled';
   /** Null if they have never signed in. */
@@ -626,6 +696,8 @@ export interface CurrentUser {
   userId: string;
   displayName: string;
   email: string;
+  /** Roles held, used to resolve incentives assigned to a role rather than a person. */
+  roleIds: string[];
 }
 
 /**
@@ -666,6 +738,11 @@ export interface AccountService {
   getIncentive(incentiveId: string): Promise<Incentive | undefined>;
   /** Third write path, alongside `saveAccountMonitoring` and `logMeeting`. */
   createIncentive(draft: IncentiveDraft): Promise<Incentive>;
+  /** Replaces both assignment lists, so removals are as explicit as additions. */
+  setIncentiveAssignment(
+    incentiveId: string,
+    assignment: { userIds: string[]; roleIds: string[] },
+  ): Promise<Incentive>;
 
   /* ─── Admin ─────────────────────────────────────────────────────────────
      Configuration reads and writes. In production every one of these is gated
@@ -673,6 +750,10 @@ export interface AccountService {
      the page, because the Web API is reachable regardless. */
 
   getWebRoles(): Promise<WebRole[]>;
+  /** Creates when `roleId` is unknown, updates when it is not. */
+  saveWebRole(role: WebRole): Promise<WebRole>;
+  /** Rejects for a system-managed role, or one still held by anyone. */
+  deleteWebRole(roleId: string): Promise<void>;
   getPortalUsers(): Promise<PortalUser[]>;
   /** Replaces a user's whole role set, so removals are as explicit as additions. */
   setUserRoles(userId: string, roleIds: string[]): Promise<PortalUser>;

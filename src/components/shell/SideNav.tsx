@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { Box, Text } from 'grommet';
 import {
+  Achievement,
   Analytics,
   Home,
   Sidebar,
@@ -46,6 +47,8 @@ const PRIMARY: NavEntry[] = [
   { label: 'Home', to: '/', icon: Home },
   { label: 'Executive View', to: '/executive-view', icon: Analytics, placeholder: true },
   { label: 'Business Development', to: '/business-development', icon: Target },
+  // What is assigned to THIS person, as opposed to the campaigns themselves.
+  { label: 'My Incentives', to: '/my-incentives', icon: Achievement },
 ];
 
 /**

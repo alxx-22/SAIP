@@ -11,6 +11,7 @@ import { ValueOverviewRibbon } from '@/components/focus/ValueOverviewRibbon';
 import { ActiveContractsRibbon } from '@/components/focus/ActiveContractsRibbon';
 import { AccountMonitoringRibbon } from '@/components/focus/AccountMonitoringRibbon';
 import { MeetingHistory } from '@/components/meetings/MeetingHistory';
+import { AccountIncentivesRibbon } from '@/components/focus/AccountIncentivesRibbon';
 import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
@@ -19,7 +20,7 @@ import { directionalPanel, fadeRise, revealOnMount } from '@/motion/variants';
 import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 
-type RibbonKey = 'value' | 'contracts' | 'monitoring' | 'meetings';
+type RibbonKey = 'value' | 'contracts' | 'monitoring' | 'meetings' | 'incentives';
 
 const RIBBONS: { key: RibbonKey; label: string; heading: string }[] = [
   { key: 'value', label: 'Value Overview', heading: 'Value Overview' },
@@ -27,6 +28,11 @@ const RIBBONS: { key: RibbonKey; label: string; heading: string }[] = [
   { key: 'monitoring', label: 'Account Monitoring', heading: 'Account Monitoring' },
   // See MeetingHistory for why this one is here — it is not a brief ribbon.
   { key: 'meetings', label: 'Recent Meetings', heading: 'Recent Meetings' },
+  // Campaigns targeting this account. Not a brief ribbon either, but the rep
+  // opens this page to ask "what is going on with this customer" and a live
+  // incentive is part of that answer — it otherwise lived only in Business
+  // Development, which an account manager has little reason to visit.
+  { key: 'incentives', label: 'Incentives', heading: 'Incentives' },
 ];
 
 /**
@@ -260,6 +266,9 @@ export function AccountFocusPage() {
               )}
               {active === 'meetings' && (
                 <MeetingHistory accountId={accountId} refreshKey={savedCount} />
+              )}
+              {active === 'incentives' && (
+                <AccountIncentivesRibbon accountId={accountId} />
               )}
             </Box>
           </motion.div>

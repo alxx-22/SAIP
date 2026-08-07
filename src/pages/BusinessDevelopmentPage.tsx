@@ -22,6 +22,7 @@ import { SkeletonRows } from '@/components/common/Skeleton';
 import { IncentiveResources } from '@/components/bizdev/IncentiveResources';
 import { IncentiveOpportunities } from '@/components/bizdev/IncentiveOpportunities';
 import { IncentiveFormModal } from '@/components/bizdev/IncentiveFormModal';
+import { IncentiveAssignment } from '@/components/bizdev/IncentiveAssignment';
 import { duration, easing, glow } from '@/motion/tokens';
 import { staggerContainer, staggerItem } from '@/motion/variants';
 import { stagger } from '@/motion/tokens';
@@ -389,14 +390,19 @@ function IncentiveDetail({ incentiveId }: { incentiveId: string }) {
   const service = useAccountService();
   const navigate = useNavigate();
   const { reduced } = useAppMotion();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { data: incentive, loading } = useAsync(
     () => service.getIncentive(incentiveId),
-    [service, incentiveId],
+    [service, incentiveId, refreshKey],
   );
   const { data: accounts } = useAsync(() => service.getAccounts(), [service]);
 
-  if (loading) {
+  // Skeleton only on the FIRST load. Saving the assignment refetches, and
+  // blanking the whole page to a skeleton for that round trip unmounted the
+  // panel mid-save — which threw away its "Saved" confirmation and made a
+  // successful write look like nothing had happened.
+  if (loading && !incentive) {
     return (
       <Box pad="medium">
         <SkeletonRows rows={4} height="96px" label="Loading incentive" />
@@ -501,6 +507,13 @@ function IncentiveDetail({ incentiveId }: { incentiveId: string }) {
             ))}
           </div>
         )}
+      </Panel>
+
+      <Panel>
+        <IncentiveAssignment
+          incentive={incentive}
+          onSaved={() => setRefreshKey((k) => k + 1)}
+        />
       </Panel>
 
       <Panel>

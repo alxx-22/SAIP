@@ -502,8 +502,16 @@ export const MOCK_MEETINGS: MeetingLog[] = [
 ];
 
 /** PLACEHOLDER DATA — stands in for the Entra ID identity Power Pages supplies. */
+/**
+ * The signed-in user.
+ *
+ * `userId` MATCHES the first row of MOCK_PORTAL_USERS deliberately — "My
+ * incentives" resolves what is assigned to this person by that id, so the two
+ * drifting apart would silently show an empty list.
+ */
 export const MOCK_CURRENT_USER = {
   userId: 'usr-sample-001',
   displayName: 'Sample User',
   email: 'sample.user@example.invalid',
+  roleIds: ['role-authenticated', 'role-account-manager', 'role-admin'],
 };

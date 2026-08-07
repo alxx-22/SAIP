@@ -91,6 +91,10 @@ export function IncentiveFormModal({
       startDate,
       endDate,
       nominatedAccountIds: nominated,
+      // Assignment happens on the incentive's own page, once it exists — the
+      // same reasoning as resources and opportunities.
+      assignedUserIds: [],
+      assignedRoleIds: [],
     };
     await service.createIncentive(draft);
     setSaving(false);

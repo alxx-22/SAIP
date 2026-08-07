@@ -77,6 +77,7 @@ const createdIncentives: Incentive[] = [];
  * defaults" quietly untrue.
  */
 const adminState = {
+  roles: structuredClone(MOCK_WEB_ROLES) as WebRole[],
   users: structuredClone(MOCK_PORTAL_USERS) as PortalUser[],
   sections: structuredClone(MOCK_QUESTION_SECTIONS) as QuestionSection[],
   questions: structuredClone(MOCK_QUESTIONS) as QuestionDefinition[],
@@ -255,10 +256,62 @@ export const mockAccountService: AccountService = {
     return delay(incentive, LATENCY.write);
   },
 
+  async setIncentiveAssignment(
+    incentiveId: string,
+    assignment: { userIds: string[]; roleIds: string[] },
+  ): Promise<Incentive> {
+    // Seeded incentives live in an imported array, so the write targets
+    // whichever list actually holds the record.
+    const incentive =
+      createdIncentives.find((i) => i.incentiveId === incentiveId) ??
+      MOCK_INCENTIVES.find((i) => i.incentiveId === incentiveId);
+    if (!incentive) throw new Error(`Unknown incentive ${incentiveId}`);
+    incentive.assignedUserIds = [...assignment.userIds];
+    incentive.assignedRoleIds = [...assignment.roleIds];
+    return delay(structuredClone(incentive), LATENCY.write);
+  },
+
   /* ─── Admin ───────────────────────────────────────────────────────────── */
 
   async getWebRoles(): Promise<WebRole[]> {
-    return delay(MOCK_WEB_ROLES, LATENCY.fast);
+    return delay(structuredClone(adminState.roles), LATENCY.fast);
+  },
+
+  async saveWebRole(role: WebRole): Promise<WebRole> {
+    const index = adminState.roles.findIndex((r) => r.roleId === role.roleId);
+    if (index === -1) {
+      adminState.roles.push(structuredClone(role));
+    } else {
+      // A system-managed role is Power Pages' to maintain, not ours.
+      if (adminState.roles[index].isSystemManaged) {
+        throw new Error(`"${role.name}" is maintained by Power Pages and cannot be edited.`);
+      }
+      adminState.roles[index] = structuredClone(role);
+    }
+    return delay(structuredClone(role), LATENCY.write);
+  },
+
+  async deleteWebRole(roleId: string): Promise<void> {
+    const role = adminState.roles.find((r) => r.roleId === roleId);
+    if (role?.isSystemManaged) {
+      throw new Error(`"${role.name}" is maintained by Power Pages and cannot be deleted.`);
+    }
+    const holders = adminState.users.filter((u) => u.roleIds.includes(roleId));
+    if (holders.length > 0) {
+      throw new Error(
+        `${holders.length} user(s) still hold "${role?.name ?? roleId}". Move them to another role first.`,
+      );
+    }
+    const assigned = [...createdIncentives, ...MOCK_INCENTIVES].filter((i) =>
+      i.assignedRoleIds.includes(roleId),
+    );
+    if (assigned.length > 0) {
+      throw new Error(
+        `${assigned.length} incentive(s) are assigned to "${role?.name ?? roleId}". Reassign them first.`,
+      );
+    }
+    adminState.roles = adminState.roles.filter((r) => r.roleId !== roleId);
+    return delay(undefined, LATENCY.write);
   },
 
   async getPortalUsers(): Promise<PortalUser[]> {

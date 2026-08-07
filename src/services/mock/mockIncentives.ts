@@ -88,6 +88,10 @@ export const MOCK_INCENTIVES: Incentive[] = [
       },
     ],
     nominatedAccountIds: ['acc-001', 'acc-003', 'acc-004', 'acc-005'],
+    // Assigned by role: every account manager works their own renewals, and
+    // anyone joining the role later picks it up without being added by name.
+    assignedUserIds: [],
+    assignedRoleIds: ['role-account-manager'],
     opportunities: [
       {
         opportunityId: 'OPE-4471903268',
@@ -173,6 +177,8 @@ export const MOCK_INCENTIVES: Incentive[] = [
       },
     ],
     nominatedAccountIds: ['acc-002', 'acc-006', 'acc-008'],
+    assignedUserIds: ['usr-sample-001', 'user-003'],
+    assignedRoleIds: [],
     opportunities: [
       {
         opportunityId: 'OPE-5093117420',
@@ -228,7 +234,11 @@ export const MOCK_INCENTIVES: Incentive[] = [
         url: null,
       },
     ],
+    // Enablement, so there are no target accounts at all — the whole point of
+    // this incentive is the people, not the customers.
     nominatedAccountIds: [],
+    assignedUserIds: [],
+    assignedRoleIds: ['role-account-manager', 'role-bizdev', 'role-line-manager'],
     // No campaign code, so nothing can be raised against it. The detail view
     // says so rather than showing an empty table.
     opportunities: [],
@@ -265,6 +275,8 @@ export const MOCK_INCENTIVES: Incentive[] = [
       },
     ],
     nominatedAccountIds: ['acc-002', 'acc-007'],
+    assignedUserIds: [],
+    assignedRoleIds: ['role-bizdev'],
     opportunities: [
       {
         opportunityId: 'OPE-3318827094',
@@ -311,6 +323,8 @@ export const MOCK_INCENTIVES: Incentive[] = [
       },
     ],
     nominatedAccountIds: ['acc-005', 'acc-006'],
+    assignedUserIds: ['usr-sample-001'],
+    assignedRoleIds: [],
     opportunities: [
       {
         opportunityId: 'OPE-2874650119',

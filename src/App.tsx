@@ -12,6 +12,7 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { BusinessDevelopmentPage } from '@/pages/BusinessDevelopmentPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { MyIncentivesPage } from '@/pages/MyIncentivesPage';
 
 /**
  * SAIP routes.
@@ -66,6 +67,7 @@ export default function App() {
           {/* Administrators only in production — enforced by web role and table
               permissions, never by hiding the nav entry. */}
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/my-incentives" element={<MyIncentivesPage />} />
           <Route
             path="/executive-view"
             element={

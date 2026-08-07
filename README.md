@@ -57,7 +57,8 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 | Account Focus — Ribbon C, Account Monitoring (editable) | Built |
 | Log a Meeting modal (both entry points) | Built |
 | Business Development — incentives, resources, nominated accounts, opportunities | Built |
-| Admin portal — users & roles, questions, dropdowns | Built (config not yet consumed by the app) |
+| Admin portal — users, roles & capabilities, questions, dropdowns | Built (config not yet consumed by the app) |
+| My Incentives — what is assigned to the signed-in person | Built |
 | SAIP.Ai assistant | Placeholder only — structural, no agent behind it |
 | Retractable left navigation | Built |
 | Profile & settings — theme, accent, notification options | Built |
@@ -96,9 +97,9 @@ src/
     focus/             the three Account Focus ribbons
     meetings/          MeetingLogModal, MeetingLogProvider, MeetingHistory
     bizdev/            incentive resources, opportunities table, create form
-    admin/             users & roles, questions, dropdown option sets
+    admin/             users, roles & capabilities, questions, option sets
   pages/             HomePage, AccountFocusPage, BusinessDevelopmentPage,
-                     AdminPage, ProfilePage, PlaceholderPage
+                     MyIncentivesPage, AdminPage, ProfilePage, PlaceholderPage
   settings/          SettingsProvider (theme + notifications), accent catalogue
 
 scripts/
@@ -145,6 +146,44 @@ recorded here so they aren't rediscovered the hard way:
 Per-user scoping must be enforced by Power Pages table permissions, not by the
 backing store: the virtual connector uses a single shared identity for every
 portal user.
+
+### Access model
+
+Users and roles are separate tabs because they are separate jobs. The Users
+table is a list of people — name, email, last active, an **SAIP Admin** tickbox
+and one **job role** from a dropdown. Roles is where a role's *capabilities* are
+set.
+
+**Admin is additive, not a job role.** An administrator is still an account
+manager or a BD lead, so the tickbox grants `role-admin` alongside whatever the
+dropdown says. Underneath, a user still holds a set of roles — what Dataverse
+stores — but presenting the raw set made people reason about six checkboxes when
+they only ever meant two things.
+
+Capabilities come from a **closed catalogue** (`CAPABILITIES` in
+`services/types.ts`), so a role can only be granted access to something the app
+actually has. Each maps to a set of Power Pages table permissions; the tick is
+the intent, the table permission is the gate.
+
+Two role rules are enforced in the service: a role still held by anyone cannot be
+deleted, and the administrator role cannot drop `admin.access` — that would lock
+everyone out of the admin portal itself.
+
+### Incentive assignment
+
+An incentive reaches people two ways, and the distinction matters:
+
+- **Nominated accounts** are the *targets* of a campaign. They surface on the
+  account's own page, under an **Incentives** tab, showing only the
+  opportunities raised against that account rather than the campaign's whole
+  pipeline.
+- **Assigned users and roles** are who is *responsible*. They surface under
+  **My Incentives**, which says why each item is there — named directly, or via
+  a role. Assigning by role means anyone joining that role picks it up without
+  a list being edited.
+
+A Sales Training incentive typically has no accounts at all and several
+assignees, which is why the two are separate fields rather than one.
 
 ### Configuration as data
 
