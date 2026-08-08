@@ -20,6 +20,19 @@ export type ScoreStatus = 'strong' | 'watch' | 'attention';
 export interface Account {
   accountId: string;
   accountName: string;
+  /**
+   * THE JOIN KEY TO EVERYTHING UPSTREAM.
+   *
+   * Accounts, contracts and opportunities are all mastered outside SAIP and
+   * arrive through the `FY26 Alignments MAIN` dataflow. They are tied together
+   * by this id, which appears as `Company Group ID` on the alignments table and
+   * as `Country Sales Entity ID` on `Opportunities` — the same value under two
+   * names, which is why the SQL views alias both to `company_group_id`.
+   *
+   * `accountId` stays SAIP's own surrogate so the front end has one stable key
+   * to route on. This is the column any query against upstream data uses.
+   */
+  companyGroupId: string;
   /** Customer's primary industry — used as supporting text in the list. */
   industry: string;
   /** Sales region / geo the alignment sits in. */
@@ -433,6 +446,128 @@ export const OPPORTUNITY_STAGES: OpportunityStage[] = [
   'Closed lost',
 ];
 
+/**
+ * Colour coding for opportunity stages: the open stages warm as they approach
+ * the close, then won goes green and lost goes neutral grey rather than red.
+ *
+ * Lost is deliberately NOT critical-red. Red on this page means "something
+ * needs your attention"; a lost deal is finished, and colouring it as an alert
+ * would send people to look at the one row they can do nothing about.
+ *
+ * As everywhere else, the stage name is always rendered — colour reinforces it
+ * and is never the only signal.
+ */
+export const OPPORTUNITY_STAGE_COLORS: Record<
+  OpportunityStage,
+  { background: string; border: string; text: string }
+> = {
+  Qualify: {
+    background: 'var(--hpe-base-color-blue-50)',
+    border: 'var(--hpe-base-color-blue-500)',
+    text: 'var(--hpe-base-color-blue-900)',
+  },
+  Propose: {
+    background: 'var(--hpe-base-color-purple-100)',
+    border: 'var(--hpe-base-color-purple-700)',
+    text: 'var(--hpe-base-color-purple-900)',
+  },
+  Negotiate: {
+    background: 'var(--hpe-base-color-gold-100)',
+    border: 'var(--hpe-base-color-gold-550)',
+    text: 'var(--hpe-base-color-grey-1000)',
+  },
+  'Closed won': {
+    background: 'var(--hpe-base-color-green-100)',
+    border: 'var(--hpe-base-color-green-600)',
+    text: 'var(--hpe-base-color-green-1000)',
+  },
+  'Closed lost': {
+    background: 'var(--hpe-base-color-grey-200)',
+    border: 'var(--hpe-base-color-grey-600)',
+    text: 'var(--hpe-base-color-grey-1000)',
+  },
+};
+
+/** Stages that are still live. Everything else is finished. */
+export const OPEN_OPPORTUNITY_STAGES: OpportunityStage[] = [
+  'Qualify',
+  'Propose',
+  'Negotiate',
+];
+
+/**
+ * One product line on an opportunity.
+ *
+ * THE SOURCE IS LINE-ITEM GRAIN. The `Opportunities` dataflow is a Salesforce
+ * export with one row per product per opportunity, so an opportunity worth
+ * £400k across six products arrives as six rows carrying the same header
+ * fields. Everything the app shows as an opportunity is therefore a roll-up,
+ * and this is the row it rolls up FROM.
+ *
+ * Maps to `Product Name`, `Value (converted)` and the `FY26 Product Table.*`
+ * hierarchy columns.
+ */
+export interface OpportunityLine {
+  /** Synthetic — the source has no line key, so views mint one deterministically. */
+  lineId: string;
+  productName: string;
+  /** `FY26 Product Table.Level 2` — the level people actually recognise. */
+  productCategory: string;
+  /** `Value (converted)`. Already converted, so no FX is applied here. */
+  value: number;
+  currency: string;
+}
+
+/**
+ * An opportunity against an account, with its product lines.
+ *
+ * Distinct from `IncentiveOpportunity`, which is the flat row shown under a
+ * campaign code on the Business Development page. This one is the account-side
+ * view: grouped, with lines, and reached from Account Focus.
+ *
+ * FIELD MAPPING to the `Opportunities` table:
+ *   opportunityNumber ← HPE Opportunity Id
+ *   opportunityId     ← Opportunity ID           (the SFDC id)
+ *   name              ← Opportunity Name
+ *   description       ← Opportunity Description
+ *   companyGroupId    ← Country Sales Entity ID  (= Company Group ID)
+ *   stage             ← Opportunity Sales Stage
+ *   forecastCategory  ← Forecast Category
+ *   closeDate         ← Close Date               (the only real date column)
+ *   totalValue        ← Total Value to HPE (converted)
+ *   ownerName/Email   ← Opportunity Owner / Opportunity Owner Email
+ *   campaignName      ← Primary Campaign Name
+ *   salesMotion       ← Sales Motion
+ */
+export interface AccountOpportunity {
+  opportunityId: string;
+  /** `OPE-` + ten digits. What people quote to each other. */
+  opportunityNumber: string;
+  name: string;
+  description: string;
+  accountId: string;
+  companyGroupId: string;
+  stage: OpportunityStage;
+  /** Commit / Best case / Pipeline — the rep's own confidence, not the stage. */
+  forecastCategory: string;
+  closeDate: IsoDate;
+  ownerName: string;
+  ownerEmail: string;
+  /** Null when the opportunity was not raised under a campaign. */
+  campaignName: string | null;
+  salesMotion: string;
+  /**
+   * `Total Value to HPE (converted)` — the header figure, NOT the sum of
+   * `lines`. The two differ in the source (the header includes elements that
+   * never appear as product lines), and reconciling them is a data question for
+   * the CRM rather than something to paper over here. The pane shows both and
+   * says which is which.
+   */
+  totalValue: number;
+  currency: string;
+  lines: OpportunityLine[];
+}
+
 /** A Business Development incentive. */
 export interface Incentive {
   incentiveId: string;
@@ -718,6 +853,16 @@ export interface AccountService {
   getAccountScores(accountId: string): Promise<Score[]>;
   getValueOverview(accountId: string): Promise<ValueOverview>;
   getServiceContracts(accountId: string): Promise<ServiceContract[]>;
+  /**
+   * Opportunities for one account, newest close date first.
+   *
+   * Returns them ALREADY GROUPED. The source is line-item grain, and grouping
+   * thousands of lines in the browser would mean fetching thousands of lines —
+   * which the Power Pages Web API pages at 5,000 and cannot aggregate. The
+   * grouping belongs in `saip.vw_account_opportunity`, so the shape returned
+   * here is the shape the view produces.
+   */
+  getAccountOpportunities(accountId: string): Promise<AccountOpportunity[]>;
   getAccountMonitoring(accountId: string): Promise<AccountMonitoring>;
   saveAccountMonitoring(monitoring: AccountMonitoring): Promise<AccountMonitoring>;
   logMeeting(draft: MeetingLogDraft): Promise<MeetingLog>;

@@ -103,7 +103,7 @@ export function AccountSelectionPane() {
           variants={staggerContainer(reduced)}
           initial="hidden"
           animate="visible"
-          style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}
+          style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}
         >
           {filtered.map((account) => (
             <motion.li key={account.accountId} variants={staggerItem(reduced)}>
@@ -165,6 +165,14 @@ function AccountRow({
         align="center"
         justify="between"
         gap="medium"
+        /*
+          Wraps because the figures block below is `flex={false}` — it cannot
+          shrink, and at phone widths the name and three figures together are
+          wider than the screen, which pushed the whole document into
+          horizontal scroll. Wrapping drops the figures onto a second line
+          instead.
+        */
+        wrap
         pad={{ horizontal: 'medium', vertical: 'small' }}
         round="small"
         background={hovered ? 'background-hover' : 'background-front'}
@@ -194,7 +202,10 @@ function AccountRow({
           }}
         />
 
-        <Box gap="xxsmall" flex>
+        {/* `1 1 200px` rather than plain `flex`: it must be allowed to SHRINK
+            (Grommet's `flex` compiles to grow-only) and to sit on its own line
+            once the figures wrap below it. */}
+        <Box gap="xxsmall" style={{ flex: '1 1 200px', minWidth: 0 }}>
           <Box direction="row" align="center" gap="xsmall" wrap>
             <Text weight={600} color="text-strong">
               {account.accountName}
@@ -207,7 +218,7 @@ function AccountRow({
           </Text>
         </Box>
 
-        <Box direction="row" align="center" gap="large" flex={false}>
+        <Box direction="row" align="center" gap="large" flex={false} wrap>
           <Stat
             label="Annual services"
             value={formatCurrencyCompact(

@@ -206,6 +206,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const palette = resolvedMode === 'dark' ? accent.dark : accent.light;
     root.style.setProperty('--saip-accent', palette.accent);
     root.style.setProperty('--saip-on-accent', palette.on);
+    /*
+      The button pair. Separate from the decorative pair because a button label
+      is body text at 4.5:1 while a decorative fill only owes 3:1 — see the
+      contrast note in accents.ts for why one pair cannot serve both.
+    */
+    root.style.setProperty('--saip-accent-solid', palette.solid);
+    root.style.setProperty('--saip-on-solid', palette.onSolid);
 
     // Lets the browser render form controls and scrollbars to match.
     root.style.colorScheme = resolvedMode;

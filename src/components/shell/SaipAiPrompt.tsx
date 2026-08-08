@@ -142,7 +142,7 @@ export function SaipAiPrompt() {
                 borderRadius: 'var(--hpe-radius-small)',
                 border: 'none',
                 background: value.trim()
-                  ? 'var(--saip-accent)'
+                  ? 'var(--saip-accent-solid)'
                   : 'var(--hpe-color-background-disabled)',
                 cursor: value.trim() ? 'pointer' : 'not-allowed',
               }}
@@ -151,7 +151,7 @@ export function SaipAiPrompt() {
                 size="small"
                 color={
                   value.trim()
-                    ? 'var(--hpe-base-color-white)'
+                    ? 'var(--saip-on-solid)'
                     : 'var(--hpe-color-icon-disabled)'
                 }
               />
@@ -192,6 +192,10 @@ export function SaipAiPrompt() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 'var(--hpe-spacing-xsmall)',
+            // Lets the row shrink past its widest chip instead of forcing the
+            // whole page wider on a phone.
+            minWidth: 0,
+            width: '100%',
           }}
         >
           {EXAMPLES.map((example) => (
@@ -218,7 +222,12 @@ export function SaipAiPrompt() {
                 background: 'var(--hpe-color-background-back)',
                 color: 'var(--hpe-color-text-weak)',
                 cursor: 'pointer',
+                // `maxWidth: 100%` alone was circular here: the row was sizing
+                // to its content, so 100% resolved to the chip's own width.
+                // Shrinking is what actually caps it.
                 maxWidth: '100%',
+                minWidth: 0,
+                flexShrink: 1,
               }}
             >
               <span
@@ -235,6 +244,14 @@ export function SaipAiPrompt() {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
+                  /*
+                    Without this the ellipsis never fires. A flex item defaults
+                    to `min-width: auto`, which is its MIN-CONTENT width — and
+                    with `nowrap` that is the whole sentence, so the chip grew
+                    to ~400px and pushed the page into horizontal scroll on a
+                    phone instead of truncating.
+                  */
+                  minWidth: 0,
                 }}
               >
                 {example.prompt}

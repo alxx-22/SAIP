@@ -198,7 +198,7 @@ export function MeetingLogModal({
             variants={staggerContainer(reduced, stagger.tight)}
             initial="hidden"
             animate="visible"
-            style={{ display: 'grid', gap: 'var(--hpe-spacing-xsmall)' }}
+            style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--hpe-spacing-xsmall)' }}
           >
             {/* Account: locked banner OR picker, never both. */}
             <motion.div variants={staggerItem(reduced)}>

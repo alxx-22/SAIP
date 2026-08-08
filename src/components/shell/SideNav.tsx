@@ -63,6 +63,16 @@ const SECONDARY: NavEntry[] = [
   { label: 'Profile & Settings', to: '/profile', icon: UserSettings },
 ];
 
+/**
+ * Below this, the expanded rail costs more than it gives.
+ *
+ * At 390px the rail took 268 of them, leaving 122 for the page — not enough for
+ * the greeting and the primary action, so the content overflowed and the whole
+ * document scrolled sideways. 640 is the width at which a 268px rail stops
+ * being a reasonable share of the screen.
+ */
+const NARROW_BREAKPOINT = 640;
+
 function loadCollapsed(): boolean {
   try {
     return window.localStorage.getItem(STORAGE_KEY) === 'true';
@@ -76,6 +86,26 @@ export function SideNav() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(loadCollapsed);
 
+  /**
+   * Whether the viewport is too narrow for the expanded rail.
+   *
+   * Tracked live rather than read once, so rotating a phone or dragging a
+   * window across the breakpoint takes effect immediately.
+   */
+  const [narrow, setNarrow] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia(`(max-width: ${NARROW_BREAKPOINT - 1}px)`).matches,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const query = window.matchMedia(`(max-width: ${NARROW_BREAKPOINT - 1}px)`);
+    const onChange = (event: MediaQueryListEvent) => setNarrow(event.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, String(collapsed));
@@ -84,7 +114,14 @@ export function SideNav() {
     }
   }, [collapsed]);
 
-  const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+  /*
+    NARROW WINS OVER THE STORED PREFERENCE, and deliberately does not overwrite
+    it. Someone who expanded the rail on a desktop should still find it expanded
+    when they go back to one, rather than having a phone silently rewrite the
+    choice they made somewhere else.
+  */
+  const isCollapsed = collapsed || narrow;
+  const width = isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
   return (
     <motion.div
@@ -109,7 +146,7 @@ export function SideNav() {
         justify="between"
       >
         <Box flex={false}>
-          <BrandMark collapsed={collapsed} reduced={reduced} />
+          <BrandMark collapsed={isCollapsed} reduced={reduced} />
 
           <Box
             as="nav"
@@ -122,7 +159,7 @@ export function SideNav() {
               <NavRow
                 key={entry.to}
                 entry={entry}
-                collapsed={collapsed}
+                collapsed={isCollapsed}
                 active={location.pathname === entry.to}
                 reduced={reduced}
               />
@@ -142,7 +179,7 @@ export function SideNav() {
               <NavRow
                 key={entry.to}
                 entry={entry}
-                collapsed={collapsed}
+                collapsed={isCollapsed}
                 active={location.pathname === entry.to}
                 reduced={reduced}
               />
@@ -150,7 +187,7 @@ export function SideNav() {
           </Box>
 
           <CollapseToggle
-            collapsed={collapsed}
+            collapsed={isCollapsed}
             reduced={reduced}
             onToggle={() => setCollapsed((c) => !c)}
           />

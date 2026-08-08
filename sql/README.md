@@ -40,7 +40,8 @@ in `dbo`. That works, and nothing here depends on separating them — but it mea
 | 040 | `040_meetings.sql` | `meeting`, `meeting_tag`, `meeting_answer` |
 | 050 | `050_incentives.sql` | `incentive`, `incentive_account`, `incentive_user`, `incentive_role`, `incentive_resource` |
 | 060 | `060_user_preferences.sql` | `user_preference` |
-| 070 | `070_views.sql` | Five views, plus one conditional on the CRM mirror |
+| 070 | `070_views.sql` | Five views over SAIP's own tables |
+| 080 | `080_upstream_views.sql` | Five views over the dataflow tables (see below) |
 | 900 | `900_seed.sql` | Capabilities, roles, grants, sections, dropdowns, questions |
 | 990 | `990_verify.sql` | Nothing — read-only checks |
 
@@ -230,11 +231,51 @@ role holds `admin.access` for the same reason.
 | Row-level security | Power Pages table permissions — the connector is a single shared identity |
 | Scores, value overview | Fabric analytics; read-only, no write path needed |
 
-`saip.vw_incentive_opportunity` joins incentives to CRM opportunities on
-campaign code. It is **created conditionally** — set `@opportunity_object` in
-`070_views.sql` to the mirrored object's real name. Until then the script skips
-it with a printed note rather than failing the deployment, and `990` reports it
-as absent.
+## The upstream tables, and the views over them
+
+Two Dataflow Gen2 destinations land in the `saip` schema:
+
+| Table | What it is |
+| --- | --- |
+| `saip.[FY26 Alignments MAIN]` | Accounts and their sales alignments |
+| `saip.Opportunities` | Salesforce export, **product line-item grain** |
+
+**Nothing reads either table directly.** `080_upstream_views.sql` puts five
+views in front of them, for reasons that are all about the tables not being ours:
+
+- **The names are hostile.** `[FY26 Alignments MAIN]` needs bracket-quoting
+  everywhere, and the fiscal-year prefix means it changes at FY27. One view is
+  one place to fix that.
+- **The tables get dropped.** A Replace-mode refresh recreates them. Views
+  survive; indexes and constraints would not, which is also why nothing holds a
+  foreign key to either.
+- **Neither has a primary key**, so each view mints a deterministic GUID with
+  `CAST(HASHBYTES('MD5', …) AS uniqueidentifier)` — 16 bytes is exactly a GUID,
+  and the same source row keys the same on every refresh.
+- **The grain is wrong for the app.** One opportunity is many rows. The roll-up
+  happens in SQL because doing it in the browser would mean pulling every
+  product line through the Web API, which pages at 5,000 and cannot aggregate.
+
+`Company Group ID` on the alignments table and `Country Sales Entity ID` on
+Opportunities are the same value; both views alias it to `company_group_id`, and
+that is the join for accounts, contracts and opportunities alike.
+
+**`saip.vw_account_pipeline` is the one that keeps the portal fast** — one row
+per account carrying open pipeline, won value, counts and the next close date,
+so a gauge costs one row rather than several thousand.
+
+### Two things to confirm against real data
+
+Both are marked `CONFIRM:` in `080`, and the queries to answer them are at the
+bottom of that file.
+
+1. **The real values in `[Opportunity Sales Stage]`.** The normalising `CASE`
+   covers the common Salesforce spellings and falls through to `Qualify` rather
+   than NULL, so an unseen stage reads as early-pipeline instead of disappearing
+   from every filter. Extend it once the values are known.
+2. **Which column carries the campaign code.** There are three candidates —
+   `Primary Campaign Name`, `Campaign Influence id` and `Program`.
+   `vw_incentive_opportunity` currently joins on the first.
 
 ---
 
@@ -242,7 +283,8 @@ as absent.
 
 1. Create the Fabric SQL Database (**check the collation before creating — it
    cannot be changed afterwards**).
-2. Run `000` → `070`.
+2. Run `000` → `070`. Then `080` once the dataflows have run at least once —
+   it is safe to run before that, and prints what it skipped.
 3. Run `900`. Confirm the counts in `990`: 9 capabilities, 6 roles, 12
    questions, 23 options.
 4. Load users from Entra; grant `role-admin` to at least one person.

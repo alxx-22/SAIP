@@ -8,12 +8,14 @@ import { useAppMotion } from '@/motion/useAppMotion';
 import {
   AdminButton,
   AdminInput,
-  AdminPanel,
   CodeDependentNote,
+  CollapsibleCard,
   FlexRow,
   IdChip,
   Row,
   SaveBar,
+  SortableList,
+  StatusChip,
 } from './AdminShared';
 import { validateOptionSetDraft } from './validation';
 
@@ -151,11 +153,31 @@ function OptionSetCard({
     [draft, set, usedBy, dirty],
   );
 
-  const sorted = [...draft.options].sort((a, b) => a.order - b.order);
+  const sorted = useMemo(
+    () => [...draft.options].sort((a, b) => a.order - b.order),
+    [draft.options],
+  );
 
   function patch(next: Partial<OptionSet>) {
     setSaved(false);
     setDraft((d) => ({ ...d, ...next }));
+  }
+
+  /**
+   * Commits a drag-reordered list.
+   *
+   * Renumbers from the array index rather than swapping the two `order` values
+   * the way the arrow buttons do. A drag can move a row past several others at
+   * once, so there is no pair to swap — and renumbering keeps the stored
+   * sequence dense (1, 2, 3…) instead of accumulating the gaps that repeated
+   * swapping leaves behind.
+   */
+  function reorder(next: OptionSetOption[]) {
+    setSaved(false);
+    setDraft((d) => ({
+      ...d,
+      options: next.map((o, i) => ({ ...o, order: i + 1 })),
+    }));
   }
 
   function updateOption(optionId: string, next: Partial<OptionSetOption>) {
@@ -223,15 +245,49 @@ function OptionSetCard({
   }
 
   return (
-    <AdminPanel
-      title={set.name}
-      description={
-        set.usage ? `${set.description} Used in: ${set.usage}.` : set.description
+    <CollapsibleCard
+      reduced={reduced}
+      title={draft.name || 'Untitled dropdown'}
+      summary={
+        <>
+          {sorted.length} option{sorted.length === 1 ? '' : 's'} · used by {usedBy}{' '}
+          question{usedBy === 1 ? '' : 's'}
+          {set.description && <> · {set.description}</>}
+        </>
       }
-      action={
-        <AdminButton onClick={addOption} reduced={reduced} disabled={saving}>
-          <Add size="small" />
-          Add option
+      badge={
+        <>
+          {/* Draft state lives in this component, not inside the collapse, so
+              closing a card never discards an edit. This says so out loud —
+              otherwise unsaved work would be invisible from the list. */}
+          {dirty && <StatusChip tone="warning">Unsaved changes</StatusChip>}
+          {set.codeDependent && <StatusChip tone="info">Matched by name</StatusChip>}
+        </>
+      }
+      actions={
+        /* Delete stays on the closed header: removing a whole dropdown is a
+           decision made from the list, not one worth expanding to reach. */
+        <AdminButton
+          onClick={onDelete}
+          /*
+            Two independent blocks:
+              - a question points here, so its control would render nothing
+              - the front end still matches these values by name, which no
+                question reference would have revealed
+            Both are enforced in the service too; this only explains why.
+          */
+          disabled={saving || usedBy > 0 || set.codeDependent}
+          tone="danger"
+          reduced={reduced}
+          title={
+            set.codeDependent
+              ? 'Still matched by value in the front end — removable once the app reads this list at runtime.'
+              : usedBy > 0
+                ? `Used by ${usedBy} question(s). Point them at another list first.`
+                : 'Delete this dropdown.'
+          }
+        >
+          <Trash size="small" />
         </AdminButton>
       }
     >
@@ -244,60 +300,33 @@ function OptionSetCard({
         pad={{ bottom: 'small' }}
         border={{ side: 'bottom', color: 'border-weak' }}
       >
-        <FlexRow justify="between" align="start">
-          <Box gap="xxsmall" style={{ flex: '1 1 340px', minWidth: 0 }}>
-            <AdminInput
-              value={draft.name}
-              onChange={(name) => patch({ name })}
-              ariaLabel={`Name for ${set.optionSetId}`}
-              placeholder="Dropdown name"
-            />
-            <AdminInput
-              value={draft.description}
-              onChange={(description) => patch({ description })}
-              ariaLabel={`Description for ${set.optionSetId}`}
-              placeholder="Description (optional)"
-            />
-            <AdminInput
-              value={draft.usage}
-              onChange={(usage) => patch({ usage })}
-              ariaLabel={`Usage note for ${set.optionSetId}`}
-              placeholder="Where it is used (optional note)"
-            />
-          </Box>
+        <Box gap="xxsmall" style={{ minWidth: 0 }}>
+          <AdminInput
+            value={draft.name}
+            onChange={(name) => patch({ name })}
+            ariaLabel={`Name for ${set.optionSetId}`}
+            placeholder="Dropdown name"
+          />
+          <AdminInput
+            value={draft.description}
+            onChange={(description) => patch({ description })}
+            ariaLabel={`Description for ${set.optionSetId}`}
+            placeholder="Description (optional)"
+          />
+          <AdminInput
+            value={draft.usage}
+            onChange={(usage) => patch({ usage })}
+            ariaLabel={`Usage note for ${set.optionSetId}`}
+            placeholder="Where it is used (optional note)"
+          />
+        </Box>
 
-          <FlexRow gap="xsmall" align="start">
-            <AdminButton
-              onClick={onDelete}
-              /*
-                Two independent blocks:
-                  - a question points here, so its control would render nothing
-                  - the front end still matches these values by name, which no
-                    question reference would have revealed
-                Both are enforced in the service too; this only explains why.
-              */
-              disabled={saving || usedBy > 0 || set.codeDependent}
-              tone="danger"
-              reduced={reduced}
-              title={
-                set.codeDependent
-                  ? 'Still matched by value in the front end — removable once the app reads this list at runtime.'
-                  : usedBy > 0
-                    ? `Used by ${usedBy} question(s). Point them at another list first.`
-                    : 'Delete this dropdown.'
-              }
-            >
-              <Trash size="small" />
-            </AdminButton>
-          </FlexRow>
-        </FlexRow>
-
-        <FlexRow gap="small">
+        <FlexRow gap="small" justify="between">
           <IdChip id={set.optionSetId} />
-          <Text size="xsmall" color="text-weak">
-            {sorted.length} option{sorted.length === 1 ? '' : 's'} · used by {usedBy}{' '}
-            question{usedBy === 1 ? '' : 's'}
-          </Text>
+          <AdminButton onClick={addOption} reduced={reduced} disabled={saving}>
+            <Add size="small" />
+            Add option
+          </AdminButton>
         </FlexRow>
       </Box>
 
@@ -311,73 +340,84 @@ function OptionSetCard({
       )}
 
       <Box>
-        {sorted.map((option, i) => (
-          <Row key={option.optionId} first={i === 0}>
-            <FlexRow justify="between" align="start">
-              <Box style={{ flex: '1 1 280px', minWidth: 0 }}>
-                <AdminInput
-                  value={option.label}
-                  onChange={(label) => updateOption(option.optionId, { label })}
-                  ariaLabel={`Label for ${option.optionId}`}
-                  placeholder="Option label"
-                />
-              </Box>
+        <SortableList
+          values={sorted}
+          getKey={(o) => o.optionId}
+          onReorder={reorder}
+          reduced={reduced}
+          renderItem={(option, i, handle) => (
+            <Row first={i === 0}>
+              <FlexRow justify="between" align="start">
+                <FlexRow gap="xsmall" align="start">
+                  {handle}
+                  <Box style={{ flex: '1 1 260px', minWidth: 0 }}>
+                    <AdminInput
+                      value={option.label}
+                      onChange={(label) => updateOption(option.optionId, { label })}
+                      ariaLabel={`Label for ${option.optionId}`}
+                      placeholder="Option label"
+                    />
+                  </Box>
+                </FlexRow>
 
-              <FlexRow gap="xsmall">
-                <IdChip id={option.optionId} />
-                <label
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: '0.75rem',
-                    color: 'var(--hpe-color-text-strong)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={option.enabled}
+                <FlexRow gap="xsmall">
+                  <IdChip id={option.optionId} />
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: '0.75rem',
+                      color: 'var(--hpe-color-text-strong)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={option.enabled}
+                      disabled={saving}
+                      onChange={(e) =>
+                        updateOption(option.optionId, { enabled: e.target.checked })
+                      }
+                    />
+                    Selectable
+                  </label>
+                  {/* The keyboard path. The drag handle is pointer-only, so
+                      these are not redundant — they are the accessible route. */}
+                  <AdminButton
+                    onClick={() => move(option.optionId, -1)}
+                    disabled={i === 0 || saving}
+                    reduced={reduced}
+                    title="Move up"
+                  >
+                    <Up size="small" />
+                  </AdminButton>
+                  <AdminButton
+                    onClick={() => move(option.optionId, 1)}
+                    disabled={i === sorted.length - 1 || saving}
+                    reduced={reduced}
+                    title="Move down"
+                  >
+                    <Down size="small" />
+                  </AdminButton>
+                  <AdminButton
+                    onClick={() => removeOption(option.optionId)}
                     disabled={saving}
-                    onChange={(e) =>
-                      updateOption(option.optionId, { enabled: e.target.checked })
+                    tone="danger"
+                    reduced={reduced}
+                    title={
+                      set.codeDependent
+                        ? 'Removal is blocked on this list — untick Selectable to retire it instead.'
+                        : 'Remove this option. Anything already saved with it will point at nothing.'
                     }
-                  />
-                  Selectable
-                </label>
-                <AdminButton
-                  onClick={() => move(option.optionId, -1)}
-                  disabled={i === 0 || saving}
-                  reduced={reduced}
-                  title="Move up"
-                >
-                  <Up size="small" />
-                </AdminButton>
-                <AdminButton
-                  onClick={() => move(option.optionId, 1)}
-                  disabled={i === sorted.length - 1 || saving}
-                  reduced={reduced}
-                  title="Move down"
-                >
-                  <Down size="small" />
-                </AdminButton>
-                <AdminButton
-                  onClick={() => removeOption(option.optionId)}
-                  disabled={saving}
-                  tone="danger"
-                  reduced={reduced}
-                  title={
-                    set.codeDependent
-                      ? 'Removal is blocked on this list — untick Selectable to retire it instead.'
-                      : 'Remove this option. Anything already saved with it will point at nothing.'
-                  }
-                >
-                  <Trash size="small" />
-                </AdminButton>
+                  >
+                    <Trash size="small" />
+                  </AdminButton>
+                </FlexRow>
               </FlexRow>
-            </FlexRow>
-          </Row>
-        ))}
+            </Row>
+          )}
+        />
 
         {sorted.length === 0 && (
           <Text size="small" color="text-weak">
@@ -399,6 +439,6 @@ function OptionSetCard({
         }}
         saveLabel="Save dropdown"
       />
-    </AdminPanel>
+    </CollapsibleCard>
   );
 }

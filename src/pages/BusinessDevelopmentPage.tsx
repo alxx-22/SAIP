@@ -102,8 +102,8 @@ function IncentiveList() {
             borderRadius: 'var(--hpe-radius-medium)',
             border: 'none',
             whiteSpace: 'nowrap',
-            background: 'var(--saip-accent)',
-            color: 'var(--hpe-base-color-white)',
+            background: 'var(--saip-accent-solid)',
+            color: 'var(--saip-on-solid)',
             cursor: 'pointer',
           }}
         >
@@ -175,7 +175,7 @@ function IncentiveList() {
           variants={staggerContainer(reduced, stagger.card)}
           initial="hidden"
           animate="visible"
-          style={{ display: 'grid', gap: 'var(--hpe-spacing-small)' }}
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--hpe-spacing-small)' }}
         >
           {shown.map((incentive) => (
             <motion.div key={incentive.incentiveId} variants={staggerItem(reduced)}>

@@ -13,10 +13,11 @@ import { useAppMotion } from '@/motion/useAppMotion';
 import {
   AdminButton,
   AdminInput,
-  AdminPanel,
+  CollapsibleCard,
   FlexRow,
   IdChip,
   SaveBar,
+  StatusChip,
 } from './AdminShared';
 import type { Issue } from './validation';
 
@@ -197,10 +198,30 @@ function RoleCard({
   }
 
   return (
-    <AdminPanel
-      title={role.name}
-      description={role.description || 'No description.'}
-      action={
+    <CollapsibleCard
+      reduced={reduced}
+      title={draft.name || 'Untitled role'}
+      summary={
+        <>
+          {draft.capabilities.length} capabilit
+          {draft.capabilities.length === 1 ? 'y' : 'ies'} · held by {heldBy} user
+          {heldBy === 1 ? '' : 's'}
+          {role.description && <> · {role.description}</>}
+        </>
+      }
+      badge={
+        <>
+          {/* The draft lives in this component rather than inside the collapse,
+              so closing a card keeps the edit. Saying so is the point of the
+              chip — otherwise unsaved work is invisible from the list. */}
+          {dirty && <StatusChip tone="warning">Unsaved changes</StatusChip>}
+          {role.isAdministrator && <StatusChip tone="info">SAIP Admin</StatusChip>}
+          {locked && <StatusChip tone="muted">Power Pages</StatusChip>}
+        </>
+      }
+      actions={
+        /* Delete stays reachable while collapsed — it is a decision made from
+           the list, not one worth expanding a role to reach. */
         <AdminButton
           onClick={onDelete}
           // A role Power Pages owns, or one still in use, cannot go. The service
@@ -332,7 +353,7 @@ function RoleCard({
         }}
         saveLabel="Save role"
       />
-    </AdminPanel>
+    </CollapsibleCard>
   );
 }
 

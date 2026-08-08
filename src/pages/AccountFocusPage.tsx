@@ -9,6 +9,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
 import { ValueOverviewRibbon } from '@/components/focus/ValueOverviewRibbon';
 import { ActiveContractsRibbon } from '@/components/focus/ActiveContractsRibbon';
+import { AccountOpportunitiesRibbon } from '@/components/focus/AccountOpportunitiesRibbon';
 import { AccountMonitoringRibbon } from '@/components/focus/AccountMonitoringRibbon';
 import { MeetingHistory } from '@/components/meetings/MeetingHistory';
 import { AccountIncentivesRibbon } from '@/components/focus/AccountIncentivesRibbon';
@@ -20,11 +21,24 @@ import { directionalPanel, fadeRise, revealOnMount } from '@/motion/variants';
 import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 
-type RibbonKey = 'value' | 'contracts' | 'monitoring' | 'meetings' | 'incentives';
+type RibbonKey =
+  | 'value'
+  | 'contracts'
+  | 'opportunities'
+  | 'monitoring'
+  | 'meetings'
+  | 'incentives';
 
 const RIBBONS: { key: RibbonKey; label: string; heading: string }[] = [
   { key: 'value', label: 'Value Overview', heading: 'Value Overview' },
   { key: 'contracts', label: 'Active Service Contracts', heading: 'Active Service Contracts' },
+  /*
+    Opportunities sits next to contracts on purpose: contracts are the revenue
+    already signed and opportunities the revenue still in play, and reps read
+    them together. It comes from the CRM export rather than from SAIP's own
+    tables — matched to the account on its company group id.
+  */
+  { key: 'opportunities', label: 'Opportunities', heading: 'Opportunities' },
   { key: 'monitoring', label: 'Account Monitoring', heading: 'Account Monitoring' },
   // See MeetingHistory for why this one is here — it is not a brief ribbon.
   { key: 'meetings', label: 'Recent Meetings', heading: 'Recent Meetings' },
@@ -261,6 +275,9 @@ export function AccountFocusPage() {
 
               {active === 'value' && <ValueOverviewRibbon accountId={accountId} />}
               {active === 'contracts' && <ActiveContractsRibbon accountId={accountId} />}
+              {active === 'opportunities' && (
+                <AccountOpportunitiesRibbon accountId={accountId} />
+              )}
               {active === 'monitoring' && (
                 <AccountMonitoringRibbon accountId={accountId} />
               )}

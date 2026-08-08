@@ -16,16 +16,24 @@ import { useAppMotion } from '@/motion/useAppMotion';
 import {
   AdminButton,
   AdminInput,
-  AdminPanel,
+  CollapsibleCard,
   FlexRow,
   IdChip,
   Row,
   SaveBar,
+  SortableList,
+  StatusChip,
 } from './AdminShared';
 import { validateSectionDraft } from './validation';
 
 /** Input types that need a dropdown behind them. */
 const CHOICE_TYPES: QuestionInputType[] = ['choice', 'multichoice'];
+
+/** Where a section can appear. Read on the collapsed header and in the picker. */
+const AREA_LABELS: Record<QuestionSection['area'], string> = {
+  'account-monitoring': 'Account Monitoring',
+  'meeting-log': 'Meeting log',
+};
 
 /**
  * Question and feedback areas.
@@ -240,6 +248,19 @@ function SectionCard({
     );
   }
 
+  /**
+   * Commits a drag-reordered question list.
+   *
+   * Renumbers from the array index rather than swapping a pair the way the
+   * arrow buttons do — a drag can cross several rows at once, so there is no
+   * pair to swap. It also keeps the stored sequence dense instead of
+   * accumulating the gaps repeated swapping leaves behind.
+   */
+  function reorderQuestions(next: QuestionDefinition[]) {
+    setSaved(false);
+    setDraftQuestions(next.map((q, i) => ({ ...q, order: i + 1 })));
+  }
+
   function addQuestion() {
     const nextOrder = sorted.length ? Math.max(...sorted.map((q) => q.order)) + 1 : 1;
     setSaved(false);
@@ -296,14 +317,64 @@ function SectionCard({
   }
 
   return (
-    <AdminPanel
-      title={section.title}
-      description={section.description || 'No description.'}
-      action={
-        <AdminButton onClick={addQuestion} reduced={reduced} disabled={saving}>
-          <Add size="small" />
-          Add question
-        </AdminButton>
+    <CollapsibleCard
+      reduced={reduced}
+      title={draftSection.title || 'Untitled section'}
+      summary={
+        <>
+          {AREA_LABELS[draftSection.area]} · {sorted.length} question
+          {sorted.length === 1 ? '' : 's'}
+          {section.description && <> · {section.description}</>}
+        </>
+      }
+      badge={
+        <>
+          {/* The draft lives out here rather than inside the collapse, so
+              closing a section keeps the edit — and this is what says so. */}
+          {dirty && <StatusChip tone="warning">Unsaved changes</StatusChip>}
+          {!draftSection.enabled && <StatusChip tone="muted">Hidden</StatusChip>}
+        </>
+      }
+      actions={
+        /*
+          Reordering and deleting stay on the closed header. Moving a section is
+          a decision about the list, so needing to open one to move it would be
+          backwards — and with sections collapsed you can finally see the whole
+          running order at once, which is when reordering makes sense at all.
+        */
+        <>
+          <AdminButton
+            onClick={() => onMove(-1)}
+            disabled={isFirst || saving || dirty}
+            reduced={reduced}
+            title={dirty ? 'Save or discard your changes first.' : 'Move section up'}
+          >
+            <Up size="small" />
+          </AdminButton>
+          <AdminButton
+            onClick={() => onMove(1)}
+            disabled={isLast || saving || dirty}
+            reduced={reduced}
+            title={dirty ? 'Save or discard your changes first.' : 'Move section down'}
+          >
+            <Down size="small" />
+          </AdminButton>
+          <AdminButton
+            onClick={onDelete}
+            // Blocked while it still holds questions — they would render
+            // nowhere. The service enforces this too.
+            disabled={saving || original.length > 0}
+            tone="danger"
+            reduced={reduced}
+            title={
+              original.length > 0
+                ? `Move or delete this section's ${original.length} question(s) first.`
+                : 'Delete this empty section.'
+            }
+          >
+            <Trash size="small" />
+          </AdminButton>
+        </>
       }
     >
       <Box
@@ -311,96 +382,74 @@ function SectionCard({
         pad={{ bottom: 'small' }}
         border={{ side: 'bottom', color: 'border-weak' }}
       >
-        <FlexRow justify="between" align="start">
-          <Box gap="xxsmall" style={{ flex: '1 1 340px', minWidth: 0 }}>
-            <AdminInput
-              value={draftSection.title}
-              onChange={(title) => patchSection({ title })}
-              ariaLabel={`Section title for ${section.sectionId}`}
-              placeholder="Section title"
-            />
-            <AdminInput
-              value={draftSection.description}
-              onChange={(description) => patchSection({ description })}
-              ariaLabel={`Section description for ${section.sectionId}`}
-              placeholder="Description (optional)"
-            />
-          </Box>
+        <Box gap="xxsmall" style={{ minWidth: 0 }}>
+          <AdminInput
+            value={draftSection.title}
+            onChange={(title) => patchSection({ title })}
+            ariaLabel={`Section title for ${section.sectionId}`}
+            placeholder="Section title"
+          />
+          <AdminInput
+            value={draftSection.description}
+            onChange={(description) => patchSection({ description })}
+            ariaLabel={`Section description for ${section.sectionId}`}
+            placeholder="Description (optional)"
+          />
+        </Box>
 
-          <FlexRow gap="xsmall" align="start">
-            <AdminButton
-              onClick={() => onMove(-1)}
-              disabled={isFirst || saving || dirty}
-              reduced={reduced}
-              title={dirty ? 'Save or discard your changes first.' : 'Move section up'}
-            >
-              <Up size="small" />
-            </AdminButton>
-            <AdminButton
-              onClick={() => onMove(1)}
-              disabled={isLast || saving || dirty}
-              reduced={reduced}
-              title={dirty ? 'Save or discard your changes first.' : 'Move section down'}
-            >
-              <Down size="small" />
-            </AdminButton>
-            <AdminButton
-              onClick={onDelete}
-              // Blocked while it still holds questions — they would render
-              // nowhere. The service enforces this too.
-              disabled={saving || original.length > 0}
-              tone="danger"
-              reduced={reduced}
-              title={
-                original.length > 0
-                  ? `Move or delete this section's ${original.length} question(s) first.`
-                  : 'Delete this empty section.'
-              }
-            >
-              <Trash size="small" />
-            </AdminButton>
+        <FlexRow gap="small" justify="between">
+          <FlexRow gap="small">
+            <IdChip id={section.sectionId} />
+            {/* WHERE THE SECTION APPEARS. Changing this moves every question in
+                it to the other form — which is the point, and why it is drafted
+                and validated like any other edit rather than applied on pick. */}
+            <Select
+              ariaLabel={`Area for ${section.sectionId}`}
+              value={draftSection.area}
+              onChange={(v) => patchSection({ area: v as QuestionSection['area'] })}
+              options={[
+                { value: 'account-monitoring', label: 'Account Monitoring' },
+                { value: 'meeting-log', label: 'Meeting log' },
+              ]}
+            />
+            <Toggle
+              label="Shown"
+              checked={draftSection.enabled}
+              disabled={saving}
+              onChange={(enabled) => patchSection({ enabled })}
+            />
           </FlexRow>
-        </FlexRow>
 
-        <FlexRow gap="small">
-          <IdChip id={section.sectionId} />
-          <Select
-            ariaLabel={`Area for ${section.sectionId}`}
-            value={draftSection.area}
-            onChange={(v) => patchSection({ area: v as QuestionSection['area'] })}
-            options={[
-              { value: 'account-monitoring', label: 'Account Monitoring' },
-              { value: 'meeting-log', label: 'Meeting log' },
-            ]}
-          />
-          <Toggle
-            label="Shown"
-            checked={draftSection.enabled}
-            disabled={saving}
-            onChange={(enabled) => patchSection({ enabled })}
-          />
-          <Text size="xsmall" color="text-weak">
-            {sorted.length} question{sorted.length === 1 ? '' : 's'}
-          </Text>
+          <AdminButton onClick={addQuestion} reduced={reduced} disabled={saving}>
+            <Add size="small" />
+            Add question
+          </AdminButton>
         </FlexRow>
       </Box>
 
       <Box>
-        {sorted.map((question, i) => (
-          <Row key={question.questionId} first={i === 0}>
-            <QuestionRow
-              question={question}
-              optionSets={optionSets}
-              saving={saving}
-              reduced={reduced}
-              isFirst={i === 0}
-              isLast={i === sorted.length - 1}
-              onPatch={(next) => patchQuestion(question.questionId, next)}
-              onRemove={() => removeQuestion(question.questionId)}
-              onMove={(by) => moveQuestion(question.questionId, by)}
-            />
-          </Row>
-        ))}
+        <SortableList
+          values={sorted}
+          getKey={(q) => q.questionId}
+          onReorder={reorderQuestions}
+          reduced={reduced}
+          renderItem={(question, i, handle) => (
+            <Row first={i === 0}>
+              <QuestionRow
+                question={question}
+                optionSets={optionSets}
+                saving={saving}
+                reduced={reduced}
+                isFirst={i === 0}
+                isLast={i === sorted.length - 1}
+                handle={handle}
+                onPatch={(next) => patchQuestion(question.questionId, next)}
+                onRemove={() => removeQuestion(question.questionId)}
+                onMove={(by) => moveQuestion(question.questionId, by)}
+              />
+            </Row>
+          )}
+        />
         {sorted.length === 0 && (
           <Text size="small" color="text-weak">
             No questions in this section yet.
@@ -423,7 +472,7 @@ function SectionCard({
         }}
         saveLabel="Save section"
       />
-    </AdminPanel>
+    </CollapsibleCard>
   );
 }
 
@@ -434,6 +483,7 @@ function QuestionRow({
   reduced,
   isFirst,
   isLast,
+  handle,
   onPatch,
   onRemove,
   onMove,
@@ -444,6 +494,9 @@ function QuestionRow({
   reduced: boolean;
   isFirst: boolean;
   isLast: boolean;
+  /** Drag grip supplied by SortableList. Pointer-only; the arrows are the
+      keyboard path. */
+  handle: React.ReactNode;
   onPatch: (next: Partial<QuestionDefinition>) => void;
   onRemove: () => void;
   onMove: (by: -1 | 1) => void;
@@ -454,7 +507,9 @@ function QuestionRow({
   return (
     <Box gap="small">
       <FlexRow justify="between" align="start">
-        <Box gap="xxsmall" style={{ flex: '1 1 340px', minWidth: 0 }}>
+        <FlexRow gap="xsmall" align="start">
+          {handle}
+          <Box gap="xxsmall" style={{ flex: '1 1 300px', minWidth: 0 }}>
           <AdminInput
             value={question.label}
             onChange={(label) => onPatch({ label })}
@@ -467,7 +522,8 @@ function QuestionRow({
             ariaLabel={`Help text for ${question.questionId}`}
             placeholder="Help text (optional)"
           />
-        </Box>
+          </Box>
+        </FlexRow>
 
         <FlexRow gap="xsmall" align="start">
           <AdminButton

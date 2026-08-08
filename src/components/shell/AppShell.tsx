@@ -1,16 +1,15 @@
 import type { ReactNode } from 'react';
-import { Box, Text } from 'grommet';
+import { Box } from 'grommet';
 import { motion } from 'framer-motion';
 import { duration, easing, spring } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
-import { IS_USING_PLACEHOLDER_DATA } from '@/services';
 import { CopilotWidget } from './CopilotWidget';
 import { NotificationPane } from './NotificationPane';
 import { SideNav } from './SideNav';
 
 /**
  * Persistent app chrome: retractable left navigation, a slim top bar for
- * notifications, the sample-data banner and the Copilot Studio slot.
+ * notifications, and the Copilot Studio slot.
  *
  * LAYOUT
  *
@@ -28,8 +27,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <Box background="background-back" style={{ minHeight: '100vh' }}>
-      {IS_USING_PLACEHOLDER_DATA && <SampleDataBanner reduced={reduced} />}
-
       <Box direction="row" align="start">
         <SideNav />
 
@@ -85,37 +82,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Whole-app sample-data banner (brief §5).
- *
- * Rendered only while `IS_USING_PLACEHOLDER_DATA` is true, so wiring the real
- * service removes it automatically.
- */
-function SampleDataBanner({ reduced }: { reduced: boolean }) {
-  return (
-    <motion.div
-      initial={reduced ? false : { height: 0, opacity: 0 }}
-      animate={{ height: 'auto', opacity: 1 }}
-      transition={{ duration: duration.entrance, ease: easing.out }}
-      style={{ overflow: 'hidden', flex: '0 0 auto' }}
-    >
-      <Box
-        background="background-warning"
-        pad={{ horizontal: 'medium', vertical: 'xsmall' }}
-        direction="row"
-        align="center"
-        gap="small"
-        border={{ side: 'bottom', color: 'border-warning' }}
-        role="note"
-      >
-        <Text size="small" weight={600} color="text-strong">
-          Prototype
-        </Text>
-        <Text size="small" color="text-strong">
-          Every account, figure, score and date shown is invented sample data —
-          not a real customer and not live from Dataverse.
-        </Text>
-      </Box>
-    </motion.div>
-  );
-}
+/*
+  The whole-app "Prototype" banner was removed at the client's request.
+
+  Per-card `<SampleDataBadge>` markers are deliberately kept: they travel with
+  the figure they qualify, so a screenshot of one ribbon still carries its own
+  caveat. The banner only said the same thing once, at the top, where it was
+  scrolled past and then forgotten.
+*/

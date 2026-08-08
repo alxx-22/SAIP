@@ -51,13 +51,14 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 | Area | Status |
 | --- | --- |
 | Homepage — Account Selection Pane | Built |
-| Homepage — Overview (three score gauges) | Built |
+| Account Focus — score gauges | Built (moved off the homepage — a portfolio average hides the accounts that need attention) |
 | Account Focus — Ribbon A, Value Overview | Built |
 | Account Focus — Ribbon B, Active Service Contracts | Built |
+| Account Focus — Opportunities (CRM, line-item grain rolled up) | Built |
 | Account Focus — Ribbon C, Account Monitoring (editable) | Built |
 | Log a Meeting modal (both entry points) | Built |
 | Business Development — incentives, resources, nominated accounts, opportunities | Built |
-| Admin portal — users, roles & capabilities, questions, dropdowns | Built (config not yet consumed by the app) |
+| Admin portal — users, roles & capabilities, questions, dropdowns | Built (collapsed cards, drag-to-reorder; config not yet consumed by the app) |
 | My Incentives — what is assigned to the signed-in person | Built |
 | SAIP.Ai assistant | Placeholder only — structural, no agent behind it |
 | Retractable left navigation | Built |
@@ -70,7 +71,7 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 
 ### Demo flow
 
-Homepage → pick an account → Account Focus (four tabs) → **Log a meeting** →
+Homepage → pick an account → Account Focus (six tabs) → **Log a meeting** →
 the saved meeting appears under *Recent Meetings*. Meeting logs and Account
 Monitoring edits persist in memory for the session, so the write paths are
 genuinely exercised rather than faked.
@@ -91,10 +92,10 @@ src/
   hooks/             useAsync (race-safe loader), useCountUp
   components/
     common/            SampleDataBadge, Skeleton, AnimatedModal
-    shell/             AppShell (nav, sample-data banner), CopilotWidget
+    shell/             AppShell (nav), CopilotWidget, SaipAiPrompt
     accounts/          AccountSelectionPane
     scores/            ScoreCard, ScoresOverview
-    focus/             the three Account Focus ribbons
+    focus/             the Account Focus ribbons, including Opportunities
     meetings/          MeetingLogModal, MeetingLogProvider, MeetingHistory
     bizdev/            incentive resources, opportunities table, create form
     admin/             users, roles & capabilities, questions, option sets
@@ -106,7 +107,8 @@ scripts/
   sync-powerpages.mjs  copies dist/ into the site tree, with guard rails
 
 sql/                 ← Fabric SQL Database build (see sql/README.md)
-  000…070            schema, tables, views — run in order, all re-runnable
+  000…080            schema, tables, views — run in order, all re-runnable
+                     (080 = views over the two dataflow tables)
   900_seed.sql       the migration's starting content, keyed to the front end
   990_verify.sql     read-only PASS/FAIL checks
 
@@ -129,7 +131,12 @@ when the real data source lands.
 
 That's the whole integration surface. No component imports change, and
 `IS_USING_PLACEHOLDER_DATA` flips to `false`, which removes every "Sample data"
-badge and the prototype banner across the app at once.
+badge across the app at once.
+
+The whole-app "Prototype" banner that used to sit above the header has been
+removed at the client's request. The per-card badges are deliberately kept: they
+travel with the figure they qualify, so a screenshot of one ribbon still carries
+its own caveat, which a banner at the top of the page did not.
 
 Reads map to Dataverse table queries; the two write paths are
 `saveAccountMonitoring` and `logMeeting`.
@@ -252,6 +259,68 @@ The database that backs all of this is built in **[`sql/`](sql/README.md)** — 
 tables, seeded so that when the front end reads from them instead of its
 constants, nothing on screen should change. Wiring those consumers is the
 remaining step.
+
+---
+
+### Opportunities, and the upstream tables
+
+Two Dataflow Gen2 destinations land in the **`saip` schema** of the Fabric SQL
+database — `saip.[FY26 Alignments MAIN]` (accounts and sales alignments) and
+`saip.Opportunities` (a Salesforce export). Neither belongs to SAIP, and nothing
+reads them directly; `sql/080_upstream_views.sql` puts five views in front of
+them and `sql/README.md` explains each one.
+
+Three consequences reach the front end:
+
+**`Account.companyGroupId` is the join key to everything upstream.** It is
+`Company Group ID` on the alignments table and `Country Sales Entity ID` on
+Opportunities — the same value under two names. `accountId` remains SAIP's own
+surrogate for routing.
+
+**`Opportunities` is at PRODUCT LINE-ITEM grain.** One opportunity worth £400k
+across six products arrives as six rows carrying identical header fields. The
+Opportunities ribbon shows one row per *opportunity* with its product lines
+expanding underneath, and `getAccountOpportunities` returns them already
+grouped — because the grouping happens in `saip.vw_account_opportunity`. Doing
+it in the browser would mean fetching every line through the Power Pages Web
+API, which pages at 5,000 rows and cannot aggregate. The same reasoning produced
+`saip.vw_account_pipeline`: one row per account for every headline figure.
+
+**The header total and the line subtotal do not reconcile, and both are shown.**
+`Total Value to HPE (converted)` includes elements with no product line behind
+them, so the expanded view labels the line subtotal as a subtotal rather than
+presenting either number as "the" value. The mock fixtures reproduce the gap
+deliberately — a pane that assumed they matched would look right here and be
+wrong against real data.
+
+⚠️ Two things in `080` are marked `CONFIRM:` and need real data: the actual
+values in `[Opportunity Sales Stage]`, and which of the three campaign-shaped
+columns carries the code an incentive is created with.
+
+### Admin screens: collapsed by default
+
+Roles, sections and dropdowns each render as a **closed card**. Questions used to
+render every question of every section expanded, which was several thousand
+pixels of form before you could see what sections existed.
+
+Two details are load-bearing:
+
+- **Draft state lives in the card component, not inside the collapse.** The body
+  unmounts when closed — fifty mounted cards meant fifty live drafts revalidating
+  on every keystroke — but the draft survives, and an `Unsaved changes` chip on
+  the closed header says so.
+- **Delete and reorder stay on the closed header.** Removing a dropdown or moving
+  a section are decisions made *from the list*; needing to expand one to reach
+  them would be backwards. They are siblings of the expand button, never children
+  of it — nesting a button inside a button is invalid and fires both.
+
+Dropdown options and questions can be **dragged to reorder**, via framer-motion's
+`Reorder` (already a dependency) with `dragListener={false}` and an explicit
+handle. A row-wide drag listener would make the text inputs in each row
+unselectable. The Up/Down buttons remain, and are not redundant: a pointer drag
+is unusable by keyboard, which is also why the grip is `aria-hidden`. A drag
+renumbers from the array index rather than swapping a pair, since a drag can
+cross several rows at once.
 
 ---
 
@@ -554,6 +623,33 @@ Do not add an accent without measuring both modes. Several obvious candidates
 fail: plain `blue-500` is 4.49:1 on white and 3.05:1 on ink, so it passes with
 neither foreground.
 
+**`--saip-accent-solid` / `--saip-on-solid` are a second, separate pair, used by
+every FILLED BUTTON.** They exist because a button label is body text owing
+4.5:1, while a decorative fill only owes the 3:1 of a UI component — and no
+single colour satisfies both:
+
+- In **light** mode the accent is a mid step, and white on `green-600` is only
+  3.00:1, so the solid drops to `green-700` (4.55:1) where a white label clears
+  AA.
+- In **dark** mode the accent is a *lifted* step, so a dark fill would disappear
+  into the page — `purple-700` measures 2.57:1 against the dark background,
+  under the 3:1 a control's boundary needs. Dark mode keeps the lifted fill and
+  puts ink on it.
+
+So a filled button is white-on-dark in light mode and ink-on-light in dark. That
+is not an inconsistency; it is the only pairing readable in both.
+
+**Amber is the documented exception** and it is a property of the ramp, not a
+choice: the darkest gold step reaches just 3.41:1 against white, so no amber
+fill can carry a white label. Amber's buttons keep ink in both modes.
+
+⚠️ **`--hpe-base-color-white` does not exist.** The token is
+`--hpe-base-color-white-100`. The misspelling is silent — CSS drops the
+declaration and the element inherits, which is how "Log a meeting" ended up with
+black text on a dark purple button, and how the assistant launcher's icon went
+invisible on four of the six accents. If a colour ever looks inherited rather
+than set, check the token name exists before anything else.
+
 Status colours — ok / warning / critical — deliberately do **not** follow the
 accent. They mean something, and recolouring them to match a preference would
 make a red gauge stop reading as a problem.
@@ -587,10 +683,33 @@ outside the React tree that consumes them. Note the site also has a Power Pages
 *Profile* page at `/profile`; there is no collision, because this screen is at
 `/#/profile`.
 
-One layout trap worth knowing: Grommet's `flex="grow"` compiles to
-`flex: 1 0 auto` — grow yes, **shrink no**. The content column beside the rail
-needs `flex: 1 1 0` and `min-width: 0`, or the rail's width is added on top of a
-full-width column and the page scrolls horizontally below ~1440px.
+**Below 640px the rail collapses itself**, regardless of the stored preference —
+at 390px an expanded rail took 268 of them and left 122 for the page. It does
+*not* overwrite the stored value: someone who expanded the rail on a desktop
+should still find it expanded there, rather than having a phone silently rewrite
+a choice made somewhere else.
+
+### Three layout traps, all the same bug
+
+Every horizontal-overflow bug in this app has been a flex or grid item refusing
+to shrink below its **min-content** width. They look unrelated and are not:
+
+1. **Grommet's `flex="grow"` compiles to `flex: 1 0 auto`** — grow yes, shrink
+   **no**. The content column beside the rail needs `flex: 1 1 0` and
+   `min-width: 0`, or the rail's width is added to a full-width column and the
+   page scrolls sideways below ~1440px.
+2. **A single-column `display: grid` sizes its column to max-content.** Every
+   stacking grid in the app therefore declares
+   `gridTemplateColumns: 'minmax(0, 1fr)'`. Without it the column cannot go
+   narrower than its widest child, and one long heading widened the whole page.
+3. **`text-overflow: ellipsis` never fires on a flex item without
+   `min-width: 0`**, because the item's automatic minimum size is the full
+   untruncated string. The SAIP.Ai suggestion chips grew to ~400px on a phone
+   instead of truncating.
+
+If the page scrolls horizontally, look for an ancestor that cannot shrink before
+looking at the thing that appears too wide. `scripts/` has no test for this;
+the check is `document.documentElement.scrollWidth > clientWidth` at 390px.
 
 ---
 

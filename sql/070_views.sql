@@ -90,9 +90,19 @@ GO
 CREATE OR ALTER VIEW saip.vw_user_incentive
 AS
 SELECT
-    CAST(HASHBYTES('SHA2_256',
+    /*
+      MD5, not SHA2_256, and cast to uniqueidentifier rather than left as
+      varbinary — MD5 returns exactly 16 bytes, which is a GUID.
+
+      This is not a security hash, it is a surrogate key, and it has to BE a
+      GUID: a virtual table's primary key must be a GUID or an integer, so the
+      varbinary(32) this used to project would have made the view unusable as
+      one. Collision risk on a few thousand assignment rows is not a real
+      consideration; failing to write is.
+    */
+    CAST(HASHBYTES('MD5',
          CONVERT(nvarchar(50), iu.user_id) + '|' +
-         CONVERT(nvarchar(50), iu.incentive_id) + '|direct') AS varbinary(32)) AS row_hash,
+         CONVERT(nvarchar(50), iu.incentive_id) + '|direct') AS uniqueidentifier) AS user_incentive_id,
     iu.user_id,
     iu.incentive_id,
     'direct'      AS assignment_reason,
@@ -103,10 +113,10 @@ FROM saip.incentive_user iu
 UNION
 
 SELECT
-    CAST(HASHBYTES('SHA2_256',
+    CAST(HASHBYTES('MD5',
          CONVERT(nvarchar(50), ur.user_id) + '|' +
          CONVERT(nvarchar(50), ir.incentive_id) + '|' +
-         CONVERT(nvarchar(50), r.role_id)) AS varbinary(32)),
+         CONVERT(nvarchar(50), r.role_id)) AS uniqueidentifier),
     ur.user_id,
     ir.incentive_id,
     'role',
@@ -197,56 +207,21 @@ WHERE q.is_enabled = 1
 GO
 
 /*----------------------------------------------------------------------------
-  vw_incentive_opportunity — DEPENDS ON AN OBJECT THIS DEPLOYMENT DOES NOT CREATE
+  vw_incentive_opportunity — MOVED TO 080
   ---------------------------------------------------------------------------
-  Opportunities are mastered in the CRM and mirrored into Fabric. This view is
-  the join from an incentive's campaign code to them.
+  This used to be a guarded view over a hypothetical `dbo.opportunity`, written
+  before the shape of the CRM feed was known.
 
-  It is created LAST and guarded, because the mirrored table's name and schema
-  belong to whoever set up the mirror. Point `@opportunity_object` at the real
-  object and re-run; until then the guard skips it and 990 reports it as absent
-  rather than the deployment failing.
+  It is now built in `080_upstream_views.sql` over the real thing —
+  `saip.Opportunities`, the Salesforce dataflow destination — which lands in the
+  saip schema at product line-item grain rather than in dbo at header grain.
+  Both of those differences mattered enough that guessing was worse than
+  waiting.
 
-  Expected shape of the source (rename in the SELECT to match reality):
-      opportunity_number, account_external_id, description,
-      estimated_value, currency_code, stage_name, estimated_close_date,
-      campaign_code
+  Nothing to do here. 080 creates it.
 ----------------------------------------------------------------------------*/
-DECLARE @opportunity_object sysname = N'dbo.opportunity';   -- <-- SET THIS
-
-IF OBJECT_ID(@opportunity_object, 'U') IS NOT NULL
-    OR OBJECT_ID(@opportunity_object, 'V') IS NOT NULL
-BEGIN
-    DECLARE @sql nvarchar(max) = N'
-CREATE OR ALTER VIEW saip.vw_incentive_opportunity
-AS
-SELECT
-    o.opportunity_number,
-    i.incentive_id,
-    i.incentive_key,
-    i.campaign_code,
-    o.account_external_id,
-    o.description,
-    o.estimated_value,
-    o.currency_code,
-    o.stage_name,
-    o.estimated_close_date
-FROM saip.incentive i
-INNER JOIN ' + @opportunity_object + N' o
-        ON o.campaign_code = i.campaign_code
-WHERE i.campaign_code IS NOT NULL;';
-    EXEC sp_executesql @sql;
-
-    PRINT 'Created saip.vw_incentive_opportunity over ' + @opportunity_object;
-END
-ELSE
-BEGIN
-    PRINT 'SKIPPED saip.vw_incentive_opportunity — ' + @opportunity_object
-        + ' not found. Set @opportunity_object in 070_views.sql to the mirrored CRM object and re-run.';
-END
-GO
 
 EXEC saip.log_deployment
     @script_name = '070_views.sql',
-    @notes       = 'vw_user_access, vw_incentive, vw_user_incentive, vw_account_monitoring_wide, vw_overdue_monitoring, vw_incentive_opportunity (conditional).';
+    @notes       = 'vw_user_access, vw_incentive, vw_user_incentive, vw_account_monitoring_wide, vw_overdue_monitoring.';
 GO

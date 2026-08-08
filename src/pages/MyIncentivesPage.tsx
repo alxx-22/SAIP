@@ -149,7 +149,7 @@ function Group2({
         variants={staggerContainer(reduced, stagger.card)}
         initial="hidden"
         animate="visible"
-        style={{ display: 'grid', gap: 'var(--hpe-spacing-small)' }}
+        style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--hpe-spacing-small)' }}
       >
         {rows.map((row) => (
           <motion.div key={row.incentive.incentiveId} variants={staggerItem(reduced)}>

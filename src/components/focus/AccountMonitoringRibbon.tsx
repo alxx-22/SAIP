@@ -138,7 +138,7 @@ export function AccountMonitoringRibbon({ accountId }: { accountId: string }) {
         variants={staggerContainer(reduced)}
         initial="hidden"
         animate="visible"
-        style={{ display: 'grid', gap: 'var(--hpe-spacing-medium)' }}
+        style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--hpe-spacing-medium)' }}
       >
         {/* ── Customer Proximity ─────────────────────────────────────────── */}
         <motion.div variants={staggerItem(reduced)}>

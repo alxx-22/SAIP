@@ -13,6 +13,7 @@
 import type {
   Account,
   AccountMonitoring,
+  AccountOpportunity,
   AccountService,
   AppNotification,
   CurrentUser,
@@ -49,6 +50,7 @@ import {
   MOCK_VALUE_OVERVIEW,
   emptyMonitoring,
 } from './mockData';
+import { MOCK_ACCOUNT_OPPORTUNITIES } from './mockOpportunities';
 import { MOCK_INCENTIVES } from './mockIncentives';
 import {
   MOCK_OPTION_SETS,
@@ -176,6 +178,24 @@ export const mockAccountService: AccountService = {
   async getServiceContracts(accountId: string): Promise<ServiceContract[]> {
     const contracts = MOCK_CONTRACTS[accountId] ?? MOCK_DEFAULT_CONTRACTS;
     return delay([...contracts], LATENCY.normal);
+  },
+
+  async getAccountOpportunities(accountId: string): Promise<AccountOpportunity[]> {
+    /*
+      Filtered by accountId here because the fixtures are already grouped. The
+      real implementation reads `saip.vw_account_opportunity` filtered on
+      `company_group_id` — the grouping and the value roll-up happen in SQL, not
+      here, because the source is line-item grain and pulling every line into
+      the browser to group it is exactly what the Web API cannot do.
+
+      Sorted by close date descending so the imminent and recently-closed work
+      is at the top, which is what someone opening an account is looking for.
+    */
+    const rows = MOCK_ACCOUNT_OPPORTUNITIES.filter((o) => o.accountId === accountId)
+      .slice()
+      .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
+      .map((o) => ({ ...o, lines: o.lines.map((l) => ({ ...l })) }));
+    return delay(rows, LATENCY.normal);
   },
 
   async getAccountMonitoring(accountId: string): Promise<AccountMonitoring> {

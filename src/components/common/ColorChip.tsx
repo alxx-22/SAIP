@@ -1,5 +1,10 @@
-import { SLA_TIER_COLORS, MEETING_TAG_COLORS, INCENTIVE_TYPE_COLORS } from '@/services';
-import type { IncentiveType, MeetingTag, SlaTier } from '@/services';
+import {
+  SLA_TIER_COLORS,
+  MEETING_TAG_COLORS,
+  INCENTIVE_TYPE_COLORS,
+  OPPORTUNITY_STAGE_COLORS,
+} from '@/services';
+import type { IncentiveType, MeetingTag, OpportunityStage, SlaTier } from '@/services';
 
 /**
  * Colour-coded chips for SLA tiers and meeting tags.
@@ -96,6 +101,32 @@ export function IncentiveTypeChip({ type }: { type: IncentiveType }) {
         }}
       />
       {type}
+    </span>
+  );
+}
+
+export function OpportunityStageChip({ stage }: { stage: OpportunityStage }) {
+  const c = OPPORTUNITY_STAGE_COLORS[stage];
+  return (
+    <span
+      style={{
+        ...baseStyle,
+        background: c.background,
+        color: c.text,
+        border: `1px solid ${c.border}`,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: c.border,
+          flex: '0 0 auto',
+        }}
+      />
+      {stage}
     </span>
   );
 }

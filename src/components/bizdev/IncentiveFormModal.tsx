@@ -374,9 +374,9 @@ export function IncentiveFormModal({
               border: 'none',
               background: saved
                 ? 'var(--hpe-color-background-ok)'
-                : 'var(--saip-accent)',
-              // Matches the Log a meeting button: white on the accent.
-              color: saved ? 'var(--hpe-color-text-strong)' : 'var(--hpe-base-color-white)',
+                : 'var(--saip-accent-solid)',
+              // Matches the Log a meeting button: the solid pair.
+              color: saved ? 'var(--hpe-color-text-strong)' : 'var(--saip-on-solid)',
               cursor: saving || saved ? 'default' : 'pointer',
             }}
           >

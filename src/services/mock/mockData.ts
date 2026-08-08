@@ -46,6 +46,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-001',
     accountName: 'Northwind Logistics Group',
+    companyGroupId: 'CG-007113',
     industry: 'Transport & Logistics',
     region: 'UK & Ireland',
     annualServicesRevenue: 4_820_000,
@@ -56,6 +57,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-002',
     accountName: 'Meridian Health Trust',
+    companyGroupId: 'CG-007126',
     industry: 'Healthcare',
     region: 'UK & Ireland',
     annualServicesRevenue: 7_140_000,
@@ -66,6 +68,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-003',
     accountName: 'Caledonia Energy plc',
+    companyGroupId: 'CG-007139',
     industry: 'Energy & Utilities',
     region: 'UK & Ireland',
     annualServicesRevenue: 11_960_000,
@@ -76,6 +79,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-004',
     accountName: 'Aldergate Financial Services',
+    companyGroupId: 'CG-007152',
     industry: 'Financial Services',
     region: 'UK & Ireland',
     annualServicesRevenue: 9_305_000,
@@ -86,6 +90,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-005',
     accountName: 'Vantage Retail Holdings',
+    companyGroupId: 'CG-007165',
     industry: 'Retail',
     region: 'UK & Ireland',
     annualServicesRevenue: 2_450_000,
@@ -96,6 +101,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-006',
     accountName: 'Orbital Manufacturing Ltd',
+    companyGroupId: 'CG-007178',
     industry: 'Manufacturing',
     region: 'UK & Ireland',
     annualServicesRevenue: 6_015_000,
@@ -106,6 +112,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-007',
     accountName: 'Kingsway Public Sector Partnership',
+    companyGroupId: 'CG-007191',
     industry: 'Public Sector',
     region: 'UK & Ireland',
     annualServicesRevenue: 13_720_000,
@@ -116,6 +123,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   {
     accountId: 'acc-008',
     accountName: 'Halcyon Media Networks',
+    companyGroupId: 'CG-007204',
     industry: 'Media & Entertainment',
     region: 'UK & Ireland',
     annualServicesRevenue: 3_180_000,

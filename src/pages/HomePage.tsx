@@ -4,7 +4,6 @@ import { useAccountService } from '@/services';
 import { useAsync } from '@/hooks/useAsync';
 import { AccountSelectionPane } from '@/components/accounts/AccountSelectionPane';
 import { LogMeetingButton } from '@/components/common/LogMeetingButton';
-import { ScoresOverview } from '@/components/scores/ScoresOverview';
 import { SaipAiPrompt } from '@/components/shell/SaipAiPrompt';
 import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
 import {
@@ -35,7 +34,7 @@ export function HomePage() {
         variants={staggerContainer(reduced, stagger.card)}
         initial="hidden"
         animate="visible"
-        style={{ display: 'grid', gap: 'var(--hpe-spacing-large)' }}
+        style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--hpe-spacing-large)' }}
       >
         {/* Greeting + primary action */}
         <motion.div variants={staggerItem(reduced)}>
@@ -65,12 +64,19 @@ export function HomePage() {
           <SaipAiPrompt />
         </motion.div>
 
-        <motion.div variants={staggerItem(reduced)}>
-          <ScoresOverview
-            heading="Overview"
-            description="Portfolio-level scores across every account aligned to you."
-          />
-        </motion.div>
+        {/*
+          NO GAUGES HERE.
+
+          The portfolio roll-up used to sit at this point. It was removed
+          because a single averaged score across every aligned account is a
+          number nobody can act on — the accounts that need attention are
+          exactly the ones the average hides. The gauges now appear only on
+          Account Focus, where a score names something a rep can do
+          something about.
+
+          `ScoresOverview` still supports the portfolio mode (call it with no
+          `accountId`) if that roll-up is ever wanted again.
+        */}
 
         {/* Mount-based, not scroll-triggered — see revealOnMount for why. */}
         <motion.div {...revealOnMount(reduced, 0.12)}>

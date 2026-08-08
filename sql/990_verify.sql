@@ -279,10 +279,51 @@ PRINT CONCAT('INFO  ', @n, ' distinct account_external_id value(s) referenced');
 SELECT @n = COUNT(*) FROM saip.incentive WHERE campaign_code IS NOT NULL;
 PRINT CONCAT('INFO  ', @n, ' incentive(s) carry a campaign code to match opportunities on');
 
-IF OBJECT_ID('saip.vw_incentive_opportunity', 'V') IS NULL
-    PRINT 'INFO  saip.vw_incentive_opportunity not created — set @opportunity_object in 070_views.sql and re-run once the CRM mirror exists';
-ELSE
-    PRINT 'PASS  saip.vw_incentive_opportunity exists';
+/* The 080 views depend on dataflow destinations this deployment does not
+   create, so their absence is reported rather than failed — a database with no
+   dataflow run yet is incomplete, not broken. */
+PRINT '';
+PRINT '--- 4. Upstream views (080) ------------------------------------------';
+
+DECLARE @upstream TABLE (object_name sysname, needs sysname);
+INSERT INTO @upstream VALUES
+    ('saip.vw_account_alignment',     'saip.[FY26 Alignments MAIN]'),
+    ('saip.vw_opportunity_line',      'saip.Opportunities'),
+    ('saip.vw_account_opportunity',   'saip.Opportunities'),
+    ('saip.vw_account_pipeline',      'saip.Opportunities'),
+    ('saip.vw_incentive_opportunity', 'saip.Opportunities');
+
+DECLARE @vname sysname, @vneeds sysname;
+DECLARE uv CURSOR LOCAL FAST_FORWARD FOR SELECT object_name, needs FROM @upstream;
+OPEN uv; FETCH NEXT FROM uv INTO @vname, @vneeds;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    IF OBJECT_ID(@vname, 'V') IS NOT NULL
+        PRINT CONCAT('PASS  ', @vname, ' exists');
+    ELSE
+        PRINT CONCAT('INFO  ', @vname, ' absent — needs ', @vneeds,
+                     '; run the dataflow then 080_upstream_views.sql');
+    FETCH NEXT FROM uv INTO @vname, @vneeds;
+END
+CLOSE uv; DEALLOCATE uv;
+
+/* The join that makes an opportunity reachable from an account page. An
+   opportunity whose company group id has no alignment row is invisible in the
+   portal — it belongs to nobody. Counted, not failed: the gap is a data
+   question upstream, not a deployment fault. */
+IF OBJECT_ID('saip.vw_account_opportunity', 'V') IS NOT NULL
+   AND OBJECT_ID('saip.vw_account_alignment', 'V') IS NOT NULL
+BEGIN
+    EXEC sp_executesql N'
+    DECLARE @orphans int;
+    SELECT @orphans = COUNT(DISTINCT o.company_group_id)
+    FROM saip.vw_account_opportunity o
+    LEFT JOIN saip.vw_account_alignment a ON a.company_group_id = o.company_group_id
+    WHERE a.company_group_id IS NULL;
+    PRINT IIF(@orphans = 0,
+        ''PASS  every opportunity maps to an aligned account'',
+        CONCAT(''INFO  '', @orphans, '' company group id(s) have opportunities but no alignment row — those opportunities appear on no account page''));';
+END
 
 PRINT '';
 PRINT '======================================================================';

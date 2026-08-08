@@ -282,7 +282,7 @@ export function NotificationPane({ refreshKey = 0 }: { refreshKey?: number }) {
                     variants={staggerContainer(reduced, stagger.tight)}
                     initial="hidden"
                     animate="visible"
-                    style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}
+                    style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6 }}
                   >
                     {visible.map((n) => (
                       <motion.li key={n.id} variants={staggerItem(reduced)}>

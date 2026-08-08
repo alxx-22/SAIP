@@ -68,24 +68,21 @@ export function LogMeetingButton({
         borderRadius: 'var(--hpe-radius-medium)',
         border: 'none',
         whiteSpace: 'nowrap',
+        /*
+          The SOLID pair, not the decorative accent — this is a filled button
+          carrying a label, so it owes 4.5:1 rather than the 3:1 a decorative
+          fill owes.
+
+          `--saip-accent-solid` is a darker ramp step in light mode so a white
+          label clears AA on every accent (the old code forced white on the
+          plain accent, which measured 3.00:1 on HPE Green). In dark mode the
+          fill stays lifted and the label is ink, because a dark button on the
+          dark page background drops to 2.6:1 against it. See accents.ts.
+        */
         background: disabled
           ? 'var(--hpe-color-background-disabled)'
-          : 'var(--saip-accent)',
-        /*
-          White, not `--saip-on-accent`, by explicit request.
-
-          Every other accent surface uses `--saip-on-accent`, which flips
-          between ink and white so the label always clears 4.5:1. This button
-          opts out and is always white, which reads as the primary action but
-          does mean the label is below AA on the lighter accents — 3.00:1 on
-          HPE Green, 3.19:1 on Amber. It clears AA on Blue, Purple, Plum and
-          Coral.
-
-          If that matters later, the fix is to darken the accent used for
-          BUTTON FILLS only (green-700 gives white 4.55:1, green-800 6.87:1)
-          rather than to reintroduce dark text here.
-        */
-        color: disabled ? 'var(--hpe-color-text-disabled)' : 'var(--hpe-base-color-white)',
+          : 'var(--saip-accent-solid)',
+        color: disabled ? 'var(--hpe-color-text-disabled)' : 'var(--saip-on-solid)',
       }}
     >
       {/*

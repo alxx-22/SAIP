@@ -154,7 +154,7 @@ function SlaSpendTile({ data, reduced }: { data: ValueOverview; reduced: boolean
         variants={staggerContainer(reduced, stagger.tight)}
         initial="hidden"
         animate="visible"
-        style={{ display: 'grid', gap: 6 }}
+        style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6 }}
       >
         {data.slaBreakdown.map((slice) => (
           <motion.div key={slice.sla} variants={staggerItem(reduced)}>

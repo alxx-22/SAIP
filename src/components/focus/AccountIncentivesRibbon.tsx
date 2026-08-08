@@ -119,7 +119,7 @@ function Section({
         variants={staggerContainer(reduced, stagger.card)}
         initial="hidden"
         animate="visible"
-        style={{ display: 'grid', gap: 'var(--hpe-spacing-small)' }}
+        style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--hpe-spacing-small)' }}
       >
         {incentives.map((incentive) => (
           <motion.div key={incentive.incentiveId} variants={staggerItem(reduced)}>

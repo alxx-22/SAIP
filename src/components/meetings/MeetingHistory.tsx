@@ -78,7 +78,7 @@ export function MeetingHistory({
         variants={staggerContainer(reduced)}
         initial="hidden"
         animate="visible"
-        style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}
+        style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}
       >
         {data.map((meeting) => (
           <motion.li key={meeting.meetingId} variants={staggerItem(reduced)}>
