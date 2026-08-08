@@ -51,7 +51,8 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 | Area | Status |
 | --- | --- |
 | Homepage — Account Selection Pane | Built |
-| Account Focus — score gauges | Built (moved off the homepage — a portfolio average hides the accounts that need attention) |
+| Account Focus — Home tab (what needs attention) | Built — the default tab |
+| Account Focus — score gauges | Built, on the header line |
 | Account Focus — Ribbon A, Value Overview | Built |
 | Account Focus — Ribbon B, Active Service Contracts | Built |
 | Account Focus — Opportunities (CRM, line-item grain rolled up) | Built |
@@ -71,7 +72,8 @@ That is the whole loop. [Full detail below.](#deploying-to-power-pages)
 
 ### Demo flow
 
-Homepage → pick an account → Account Focus (six tabs) → **Log a meeting** →
+Homepage → pick an account → Account Focus opens on **Home**, which says what
+needs attention and links to the tab that handles it → **Log a meeting** →
 the saved meeting appears under *Recent Meetings*. Meeting logs and Account
 Monitoring edits persist in memory for the session, so the write paths are
 genuinely exercised rather than faked.
@@ -92,10 +94,10 @@ src/
   hooks/             useAsync (race-safe loader), useCountUp
   components/
     common/            SampleDataBadge, Skeleton, AnimatedModal
-    shell/             AppShell (nav), CopilotWidget, SaipAiPrompt
+    shell/             AppShell (nav), PageHeader, CopilotWidget, SaipAiPrompt
     accounts/          AccountSelectionPane
-    scores/            ScoreCard, ScoresOverview
-    focus/             the Account Focus ribbons, including Opportunities
+    scores/            ScoreCard, ScoresOverview, ScoreMiniRow (header gauges)
+    focus/             the Account Focus ribbons — Home, Opportunities, the rest
     meetings/          MeetingLogModal, MeetingLogProvider, MeetingHistory
     bizdev/            incentive resources, opportunities table, create form
     admin/             users, roles & capabilities, questions, option sets
@@ -654,6 +656,23 @@ Status colours — ok / warning / critical — deliberately do **not** follow th
 accent. They mean something, and recolouring them to match a preference would
 make a red gauge stop reading as a problem.
 
+### The rule: decorative follows the accent, semantic never does
+
+If a colour is **decoration** — focus rings, hover glows, selection indicators,
+icons, links, left rails on neutral cards — it uses `--saip-accent`.
+
+If a colour **says something** — a score's status, a severity dot, an SLA tier,
+an opportunity stage, a warning rail — it stays on its semantic token whatever
+accent is chosen.
+
+⚠️ **Do not reach for HPE's `primary` or `selected` tokens for decoration.**
+`--hpe-color-foreground-primary`, `--hpe-color-border-selected`,
+`icon-primary`, `text-primary` and `background-selected` are all **brand green
+by definition and never move**. That is how the app ended up with purple tabs
+and a green focus ring, a green hover glow on the Value Overview tiles, and a
+green back-link, with Plum selected. Every one of those now uses
+`--saip-accent`.
+
 ### Where settings live
 
 `localStorage`, under `saip.settings.v1`, validated field by field on read so a
@@ -682,6 +701,18 @@ the wrong theme before the settings applied — and it would put the settings
 outside the React tree that consumes them. Note the site also has a Power Pages
 *Profile* page at `/profile`; there is no collision, because this screen is at
 `/#/profile`.
+
+**There is no top bar.** It was a sticky strip carrying one control — the
+notification bell — with every page then drawing its own heading row underneath.
+Two bands of chrome, roughly 120px, before anything worth reading. The bell now
+sits at the end of the heading row it used to float above, in
+`components/shell/PageHeader.tsx`.
+
+**Every page must use `<PageHeader>`.** It is the only route to notifications;
+a page that rolls its own title row silently has none. It renders a real
+`<header>` and takes four slots — `eyebrow` (back link), `title`, `aside`
+(compact visuals that belong with the heading, such as the account gauges) and
+`actions` (the page's primary button, with the bell appended).
 
 **Below 640px the rail collapses itself**, regardless of the stored preference —
 at 390px an expanded rail took 268 of them and left 122 for the page. It does

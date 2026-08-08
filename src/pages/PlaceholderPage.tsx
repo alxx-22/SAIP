@@ -3,6 +3,7 @@ import { Plan } from 'grommet-icons';
 import { motion } from 'framer-motion';
 import { fadeRise } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
+import { PageHeader } from '@/components/shell/PageHeader';
 
 /**
  * Nav placeholder (brief §6, §10).
@@ -21,8 +22,17 @@ export function PlaceholderPage({
   const { reduced } = useAppMotion();
 
   return (
-    <Box pad="medium" align="center" justify="center" fill>
-      <motion.div variants={fadeRise(reduced)} initial="hidden" animate="visible">
+    <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
+      {/* Even an unbuilt page carries the header: it is the only place the
+          notification bell lives now that there is no top bar. */}
+      <PageHeader title={title} subtitle={description} />
+
+      <motion.div
+        variants={fadeRise(reduced)}
+        initial="hidden"
+        animate="visible"
+        style={{ display: 'flex', justifyContent: 'center' }}
+      >
         <Box
           pad="large"
           round="medium"

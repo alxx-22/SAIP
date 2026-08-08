@@ -27,6 +27,7 @@ import { duration, easing, glow } from '@/motion/tokens';
 import { staggerContainer, staggerItem } from '@/motion/variants';
 import { stagger } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
+import { PageHeader } from '@/components/shell/PageHeader';
 
 /**
  * Business Development.
@@ -71,21 +72,18 @@ function IncentiveList() {
 
   return (
     <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
-      <Box direction="row" align="center" justify="between" gap="medium" wrap>
-        <Box gap="xxsmall">
+      <PageHeader
+        title={
           <Box direction="row" align="center" gap="small">
             <Target color="var(--saip-accent)" />
             <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
               Business Development
             </Text>
           </Box>
-          <Text color="text-weak">
-            Incentives, the accounts nominated for them, and the opportunities
-            raised against their campaign codes.
-          </Text>
-        </Box>
-
-        <motion.button
+        }
+        subtitle="Incentives, the accounts nominated for them, and the opportunities raised against their campaign codes."
+        actions={
+          <motion.button
           type="button"
           onClick={() => setCreating(true)}
           whileHover={reduced ? undefined : { y: -2, boxShadow: glow.primary }}
@@ -107,10 +105,11 @@ function IncentiveList() {
             cursor: 'pointer',
           }}
         >
-          <Add size="small" />
-          New incentive
-        </motion.button>
-      </Box>
+            <Add size="small" />
+            New incentive
+          </motion.button>
+        }
+      />
 
       {/* Active / Historical. A segmented control rather than tabs: these are two
           filters over one list, not two different kinds of content. */}
@@ -432,17 +431,21 @@ function IncentiveDetail({ incentiveId }: { incentiveId: string }) {
 
   return (
     <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
-      <BackLink onClick={() => navigate('/business-development')} />
+      <PageHeader
+        eyebrow={<BackLink onClick={() => navigate('/business-development')} />}
+        title={
+          <Box direction="row" align="center" gap="small" wrap>
+            <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
+              {incentive.title}
+            </Text>
+            <IncentiveTypeChip type={incentive.type} />
+            <StatusChip status={status} />
+            <SampleDataBadge />
+          </Box>
+        }
+      />
 
       <Box gap="xsmall">
-        <Box direction="row" align="center" gap="small" wrap>
-          <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
-            {incentive.title}
-          </Text>
-          <IncentiveTypeChip type={incentive.type} />
-          <StatusChip status={status} />
-          <SampleDataBadge />
-        </Box>
         <Text size="small" color="text-weak">
           {formatDate(incentive.startDate)} —{' '}
           {incentive.endDate ? formatDate(incentive.endDate) : 'open-ended'} · created

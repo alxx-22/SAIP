@@ -1,15 +1,11 @@
 import type { ReactNode } from 'react';
 import { Box } from 'grommet';
-import { motion } from 'framer-motion';
-import { duration, easing, spring } from '@/motion/tokens';
-import { useAppMotion } from '@/motion/useAppMotion';
 import { CopilotWidget } from './CopilotWidget';
-import { NotificationPane } from './NotificationPane';
 import { SideNav } from './SideNav';
 
 /**
- * Persistent app chrome: retractable left navigation, a slim top bar for
- * notifications, and the Copilot Studio slot.
+ * Persistent app chrome: retractable left navigation and the Copilot Studio
+ * slot. There is no top bar — see the note where it used to be.
  *
  * LAYOUT
  *
@@ -23,8 +19,6 @@ import { SideNav } from './SideNav';
  * room to grow past three sections without the header running out of width.
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { reduced } = useAppMotion();
-
   return (
     <Box background="background-back" style={{ minHeight: '100vh' }}>
       <Box direction="row" align="start">
@@ -47,30 +41,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           flex={{ grow: 1, shrink: 1 }}
           style={{ minWidth: 0, flexBasis: 0 }}
         >
-          <motion.header
-            initial={reduced ? false : { y: -18, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: duration.entrance, ease: easing.out }}
-            style={{ position: 'sticky', top: 0, zIndex: 20 }}
-          >
-            <Box
-              direction="row"
-              align="center"
-              justify="end"
-              pad={{ horizontal: 'medium', vertical: 'small' }}
-              background="background-front"
-              border={{ side: 'bottom', color: 'border-weak' }}
-              flex={false}
-            >
-              <motion.div
-                initial={reduced ? false : { opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={reduced ? { duration: 0 } : { ...spring.bouncy, delay: 0.25 }}
-              >
-                <NotificationPane />
-              </motion.div>
-            </Box>
-          </motion.header>
+          {/*
+            NO TOP BAR.
+
+            There used to be a sticky strip here carrying one control, the
+            notification bell, with every page then drawing its own heading row
+            underneath. Two bands of chrome — roughly 120px — before anything
+            worth reading, which on a laptop put the first actionable thing
+            below the fold.
+
+            The bell moved into `PageHeader`, at the end of the heading row it
+            used to float above. Same controls, one band. Any new page should
+            use `<PageHeader>` rather than rolling its own title row, or it will
+            have no way to reach notifications.
+          */}
 
           {/* Route content scrolls with the document, not in its own container. */}
           <Box as="main">{children}</Box>

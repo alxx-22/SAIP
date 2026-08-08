@@ -161,7 +161,7 @@ export function NotificationPane({ refreshKey = 0 }: { refreshKey?: number }) {
           boxShadow: open ? glow.primary : 'none',
         }}
       >
-        <Notification size="small" color={open ? 'icon-primary' : 'icon-default'} />
+        <Notification size="small" color={open ? 'var(--saip-accent)' : 'icon-default'} />
 
         {/* Count badge. Pulses gently while anything is outstanding. */}
         <AnimatePresence>
@@ -377,7 +377,7 @@ function NotificationRow({
           transition={{ duration: duration.fast, ease: easing.out }}
           aria-hidden
         >
-          <FormNextLink size="small" color={hovered ? 'icon-primary' : 'icon-weak'} />
+          <FormNextLink size="small" color={hovered ? 'var(--saip-accent)' : 'icon-weak'} />
         </motion.div>
       </Box>
     </motion.button>

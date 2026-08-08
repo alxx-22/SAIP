@@ -12,6 +12,7 @@ import { useAccountService } from '@/services';
 import { useAsync } from '@/hooks/useAsync';
 import { duration, easing } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
+import { PageHeader } from '@/components/shell/PageHeader';
 import { staggerContainer, staggerItem } from '@/motion/variants';
 import type { NotificationSeverity } from '@/services';
 
@@ -37,19 +38,21 @@ export function ProfilePage() {
 
   return (
     <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
-      <Box gap="xxsmall">
-        <Box direction="row" align="center" gap="small">
-          <UserSettings color="var(--saip-accent)" />
-          <Heading level={1} size="small" margin="none">
-            Profile &amp; settings
-          </Heading>
-        </Box>
-        <Text size="small" color="text-weak">
-          {user
+      <PageHeader
+        title={
+          <Box direction="row" align="center" gap="small">
+            <UserSettings color="var(--saip-accent)" />
+            <Heading level={1} size="small" margin="none">
+              Profile &amp; settings
+            </Heading>
+          </Box>
+        }
+        subtitle={
+          user
             ? `Signed in as ${user.displayName} · ${user.email}`
-            : 'Loading your details…'}
-        </Text>
-      </Box>
+            : 'Loading your details…'
+        }
+      />
 
       <motion.div
         variants={staggerContainer(reduced)}

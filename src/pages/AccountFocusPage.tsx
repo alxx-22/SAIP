@@ -13,15 +13,18 @@ import { AccountOpportunitiesRibbon } from '@/components/focus/AccountOpportunit
 import { AccountMonitoringRibbon } from '@/components/focus/AccountMonitoringRibbon';
 import { MeetingHistory } from '@/components/meetings/MeetingHistory';
 import { AccountIncentivesRibbon } from '@/components/focus/AccountIncentivesRibbon';
-import { ScoresOverview } from '@/components/scores/ScoresOverview';
+import { ScoreMiniRow } from '@/components/scores/ScoreMiniRow';
+import { PageHeader } from '@/components/shell/PageHeader';
+import { AccountHomeRibbon } from '@/components/focus/AccountHomeRibbon';
 import { SkeletonBar } from '@/components/common/Skeleton';
 import { SampleDataBadge } from '@/components/common/SampleDataBadge';
 import { LogMeetingButton } from '@/components/common/LogMeetingButton';
-import { directionalPanel, fadeRise, revealOnMount } from '@/motion/variants';
+import { directionalPanel } from '@/motion/variants';
 import { duration, easing, glow } from '@/motion/tokens';
 import { useAppMotion } from '@/motion/useAppMotion';
 
 type RibbonKey =
+  | 'home'
   | 'value'
   | 'contracts'
   | 'opportunities'
@@ -30,6 +33,13 @@ type RibbonKey =
   | 'incentives';
 
 const RIBBONS: { key: RibbonKey; label: string; heading: string }[] = [
+  /*
+    Home is first and is the default, because the page previously opened on
+    Value Overview — a report you have to interpret. A rep arrives asking "what
+    needs me on this account", and Home answers that in counts with a link to
+    each. Everything on it is derived from the other tabs; it stores nothing.
+  */
+  { key: 'home', label: 'Home', heading: 'What needs attention' },
   { key: 'value', label: 'Value Overview', heading: 'Value Overview' },
   { key: 'contracts', label: 'Active Service Contracts', heading: 'Active Service Contracts' },
   /*
@@ -77,7 +87,10 @@ export function AccountFocusPage() {
   const [active, setActive] = useState<RibbonKey>(
     requestedRibbon && RIBBONS.some((r) => r.key === requestedRibbon)
       ? requestedRibbon
-      : 'value',
+      : // Home, not Value Overview. Opening on a report meant the rep had to
+        // interpret something before they could act; Home tells them what
+        // needs doing and links straight to it.
+        'home',
   );
 
   // A repeat click may also need to switch back to the target ribbon if the
@@ -164,8 +177,8 @@ export function AccountFocusPage() {
 
   return (
     <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
-      <motion.div variants={fadeRise(reduced)} initial="hidden" animate="visible">
-        <Box gap="small">
+      <PageHeader
+        eyebrow={
           <Link
             to="/"
             style={{
@@ -176,58 +189,48 @@ export function AccountFocusPage() {
               width: 'fit-content',
             }}
           >
-            <LinkPrevious size="small" color="icon-primary" />
-            <Text size="small" color="text-primary">
+            {/* Accent, not `icon-primary`/`text-primary` — those are HPE brand
+                green by definition and stayed green with Plum selected. */}
+            <LinkPrevious size="small" color="var(--saip-accent)" />
+            <Text size="small" style={{ color: 'var(--saip-accent)' }}>
               All accounts
             </Text>
           </Link>
-
-          <Box direction="row" align="start" justify="between" gap="medium" wrap>
-            <Box gap="xxsmall">
-              {loading ? (
-                <SkeletonBar height="34px" width="320px" />
-              ) : (
-                <Box direction="row" align="center" gap="small" wrap>
-                  <Text
-                    as="h1"
-                    size="xxlarge"
-                    weight={600}
-                    color="text-strong"
-                    margin="none"
-                  >
-                    {/* PLACEHOLDER DATA — fictional account name. */}
-                    {account?.accountName ?? 'Unknown account'}
-                  </Text>
-                  <SampleDataBadge />
-                </Box>
-              )}
-
-              {account && (
-                <Text color="text-weak">
-                  {account.industry} · {account.region} ·{' '}
-                  {formatCurrency(account.annualServicesRevenue, account.currency)} annual
-                  services revenue
-                </Text>
-              )}
+        }
+        title={
+          loading ? (
+            <SkeletonBar height="34px" width="320px" />
+          ) : (
+            <Box direction="row" align="center" gap="small" wrap>
+              <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
+                {/* PLACEHOLDER DATA — fictional account name. */}
+                {account?.accountName ?? 'Unknown account'}
+              </Text>
+              <SampleDataBadge />
             </Box>
-
-            {/* Account id passed → modal locks the account. */}
-            <LogMeetingButton
-              onClick={() => openMeetingLog(accountId)}
-              disabled={!accountId}
-            />
-          </Box>
-        </Box>
-      </motion.div>
-
-      {/* Account-level scores, above the ribbons. */}
-      <motion.div {...revealOnMount(reduced, 0.1)}>
-        <ScoresOverview
-          accountId={accountId}
-          heading="Scores"
-          description="Relationship and spend health for this account."
-        />
-      </motion.div>
+          )
+        }
+        subtitle={
+          account
+            ? `${account.industry} · ${account.region} · ${formatCurrency(
+                account.annualServicesRevenue,
+                account.currency,
+              )} annual services revenue`
+            : undefined
+        }
+        /* The scores were a full section between the header and the tabs,
+           costing ~180px before the rep saw anything actionable. They now fill
+           the dead space on the header line, and each one opens the tab that
+           explains it. */
+        aside={<ScoreMiniRow accountId={accountId} onSelect={selectRibbon} />}
+        actions={
+          /* Account id passed → modal locks the account. */
+          <LogMeetingButton
+            onClick={() => openMeetingLog(accountId)}
+            disabled={!accountId}
+          />
+        }
+      />
 
       {/* ── Ribbon tabs ──────────────────────────────────────────────────── */}
       <Box gap="medium">
@@ -237,8 +240,31 @@ export function AccountFocusPage() {
           role="tablist"
           aria-label="Account detail sections"
           border={{ side: 'bottom', color: 'border-weak' }}
-          overflow={{ horizontal: 'auto' }}
           flex={false}
+          className="saip-tabstrip"
+          /*
+            THE VERTICAL SCROLLBAR ON THE TAB STRIP.
+
+            This was `overflow={{ horizontal: 'auto' }}`, which sets only
+            `overflow-x`. CSS then forces the other axis: once one axis is not
+            `visible`, `visible` on the other computes to `auto`. The active
+            tab's underline and its glow sit a pixel or two proud of the row, so
+            the browser decided the strip scrolled vertically and drew a
+            scrollbar for it.
+
+            `overflow-y: hidden` states the intent instead of leaving it to be
+            inferred. `.saip-tabstrip` then hides the horizontal bar's chrome
+            while keeping the scrolling itself — a half-visible tab is a better
+            affordance than a scrollbar over a 44px strip.
+          */
+          style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            /* The active tab's underline sits a pixel proud of the row. With
+               overflow-y hidden that pixel would be clipped, so the strip pays
+               for it in padding rather than losing the indicator. */
+            paddingBottom: 2,
+          }}
         >
           {RIBBONS.map((ribbon) => (
             <RibbonTab
@@ -273,6 +299,9 @@ export function AccountFocusPage() {
                 {RIBBONS.find((r) => r.key === active)?.heading}
               </Text>
 
+              {active === 'home' && (
+                <AccountHomeRibbon accountId={accountId} onOpenRibbon={selectRibbon} />
+              )}
               {active === 'value' && <ValueOverviewRibbon accountId={accountId} />}
               {active === 'contracts' && <ActiveContractsRibbon accountId={accountId} />}
               {active === 'opportunities' && (

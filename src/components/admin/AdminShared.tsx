@@ -657,11 +657,22 @@ export function FlexRow({
   gap = 'small',
   justify,
   align = 'center',
+  grow = false,
 }: {
   children: React.ReactNode;
   gap?: 'xxsmall' | 'xsmall' | 'small' | 'medium';
   justify?: 'start' | 'between' | 'end';
   align?: 'start' | 'center';
+  /**
+   * Take the leftover space in the parent row.
+   *
+   * Needed when a FlexRow wraps an input: nested inside another flex row it
+   * defaults to `flex: 0 1 auto` and sizes to its content, which left the
+   * question and option label fields at their intrinsic width with half the
+   * card empty beside them. `1 1 320px` lets them fill the row and still drop
+   * to their own line when the row wraps.
+   */
+  grow?: boolean;
 }) {
   return (
     <div
@@ -676,6 +687,7 @@ export function FlexRow({
               ? 'flex-end'
               : 'flex-start',
         gap: `var(--hpe-spacing-${gap})`,
+        ...(grow ? { flex: '1 1 320px', minWidth: 0 } : null),
       }}
     >
       {children}

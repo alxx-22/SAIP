@@ -161,7 +161,15 @@ button:disabled {
 }
 
 /**
- * Inputs glow on focus, matching the brand accent.
+ * Inputs glow on focus, in the USER'S CHOSEN ACCENT.
+ *
+ * `--saip-accent`, not `--hpe-color-border-selected` / `-foreground-primary`.
+ * Those two are HPE brand green by definition and never move, so with Plum
+ * selected the page had purple tabs and a green focus ring. Anything decorative
+ * — focus, hover, selection — follows the accent. Only colours that MEAN
+ * something (ok / warning / critical, SLA tiers, stages) stay fixed, because
+ * recolouring those would change what they say.
+ *
  * Complements — never replaces — HPE's own focus indicator, which stays intact
  * for keyboard users via the `:focus-visible` rule above.
  */
@@ -169,8 +177,8 @@ input:focus,
 textarea:focus,
 select:focus {
   box-shadow:
-    0 0 0 1px var(--hpe-color-border-selected),
-    0 0 16px -5px var(--hpe-color-foreground-primary);
+    0 0 0 1px var(--saip-accent),
+    0 0 16px -5px var(--saip-accent);
 }
 
 /**
@@ -204,8 +212,8 @@ select:focus {
 .saip-value-tile:hover,
 .saip-value-tile:focus-visible {
   box-shadow:
-    0 0 0 1px var(--hpe-color-border-selected),
-    0 0 20px -4px var(--hpe-color-foreground-primary);
+    0 0 0 1px var(--saip-accent),
+    0 0 20px -4px var(--saip-accent);
 }
 
 /**
@@ -270,4 +278,26 @@ select:focus {
   50% {
     opacity: 0.62;
   }
+}
+
+/**
+ * Horizontally scrolling tab strip, without the scrollbar chrome.
+ *
+ * The strip is ~44px tall and holds seven tabs, so on a narrow screen it has to
+ * scroll — but a scrollbar across a strip that short reads as a rendering fault,
+ * and it was also appearing on wide screens where nothing overflowed at all.
+ * (That second case was a CSS inference: `overflow-x: auto` forces the other
+ * axis from `visible` to `auto`, and the active tab's glow sits a pixel proud of
+ * the row. The component now sets `overflow-y: hidden` explicitly.)
+ *
+ * Scrolling still works by wheel, trackpad, touch and keyboard. The affordance
+ * is the half-visible tab at the edge, which is what a native tab strip uses.
+ */
+.saip-tabstrip {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.saip-tabstrip::-webkit-scrollbar {
+  display: none;
 }

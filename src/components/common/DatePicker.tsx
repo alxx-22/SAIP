@@ -167,7 +167,7 @@ export function DatePicker({
           transition={spring.snappy}
           style={{ display: 'flex' }}
         >
-          <Schedule size="small" color={open ? 'icon-primary' : 'icon-weak'} />
+          <Schedule size="small" color={open ? 'var(--saip-accent)' : 'icon-weak'} />
         </motion.span>
       </motion.button>
 

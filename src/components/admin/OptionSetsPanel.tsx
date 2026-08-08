@@ -348,9 +348,9 @@ function OptionSetCard({
           renderItem={(option, i, handle) => (
             <Row first={i === 0}>
               <FlexRow justify="between" align="start">
-                <FlexRow gap="xsmall" align="start">
+                <FlexRow gap="xsmall" align="start" grow>
                   {handle}
-                  <Box style={{ flex: '1 1 260px', minWidth: 0 }}>
+                  <Box style={{ flex: '1 1 200px', minWidth: 0 }}>
                     <AdminInput
                       value={option.label}
                       onChange={(label) => updateOption(option.optionId, { label })}

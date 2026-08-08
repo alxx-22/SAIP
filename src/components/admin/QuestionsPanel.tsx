@@ -507,9 +507,9 @@ function QuestionRow({
   return (
     <Box gap="small">
       <FlexRow justify="between" align="start">
-        <FlexRow gap="xsmall" align="start">
+        <FlexRow gap="xsmall" align="start" grow>
           {handle}
-          <Box gap="xxsmall" style={{ flex: '1 1 300px', minWidth: 0 }}>
+          <Box gap="xxsmall" style={{ flex: '1 1 240px', minWidth: 0 }}>
           <AdminInput
             value={question.label}
             onChange={(label) => onPatch({ label })}

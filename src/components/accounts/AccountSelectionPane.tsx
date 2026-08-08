@@ -237,7 +237,7 @@ function AccountRow({
             transition={{ duration: duration.fast, ease: easing.out }}
             aria-hidden
           >
-            <FormNextLink color={hovered ? 'icon-primary' : 'icon-weak'} />
+            <FormNextLink color={hovered ? 'var(--saip-accent)' : 'icon-weak'} />
           </motion.div>
         </Box>
       </Box>

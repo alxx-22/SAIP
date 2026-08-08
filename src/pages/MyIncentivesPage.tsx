@@ -12,6 +12,7 @@ import { SkeletonRows } from '@/components/common/Skeleton';
 import { duration, easing, stagger } from '@/motion/tokens';
 import { staggerContainer, staggerItem } from '@/motion/variants';
 import { useAppMotion } from '@/motion/useAppMotion';
+import { PageHeader } from '@/components/shell/PageHeader';
 
 /**
  * My Incentives — what the signed-in person is expected to act on.
@@ -56,18 +57,17 @@ export function MyIncentivesPage() {
 
   return (
     <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
-      <Box gap="xxsmall">
-        <Box direction="row" align="center" gap="small">
-          <Achievement color="var(--saip-accent)" />
-          <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
-            My Incentives
-          </Text>
-        </Box>
-        <Text color="text-weak" style={{ maxWidth: '72ch' }}>
-          Training, sales plays and campaigns assigned to you — directly or
-          through a role you hold.
-        </Text>
-      </Box>
+      <PageHeader
+        title={
+          <Box direction="row" align="center" gap="small">
+            <Achievement color="var(--saip-accent)" />
+            <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
+              My Incentives
+            </Text>
+          </Box>
+        }
+        subtitle="Training, sales plays and campaigns assigned to you — directly or through a role you hold."
+      />
 
       {loading && <SkeletonRows rows={3} height="120px" label="Loading your incentives" />}
 

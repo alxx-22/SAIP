@@ -1,10 +1,11 @@
-import { Box, Text } from 'grommet';
+import { Box } from 'grommet';
 import { motion } from 'framer-motion';
 import { useAccountService } from '@/services';
 import { useAsync } from '@/hooks/useAsync';
 import { AccountSelectionPane } from '@/components/accounts/AccountSelectionPane';
 import { LogMeetingButton } from '@/components/common/LogMeetingButton';
 import { SaipAiPrompt } from '@/components/shell/SaipAiPrompt';
+import { PageHeader } from '@/components/shell/PageHeader';
 import { useMeetingLog } from '@/components/meetings/MeetingLogProvider';
 import {
   fadeRise,
@@ -36,24 +37,19 @@ export function HomePage() {
         animate="visible"
         style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--hpe-spacing-large)' }}
       >
-        {/* Greeting + primary action */}
+        {/* Greeting + primary action. PageHeader also carries the notification
+            bell, which is why every page uses it — there is no top bar. */}
         <motion.div variants={staggerItem(reduced)}>
-          <Box direction="row" align="center" justify="between" gap="medium" wrap>
-            <Box gap="xxsmall">
-              <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
-                {/* PLACEHOLDER — the display name comes from the mock service.
-                    In production Power Pages supplies the Entra ID identity. */}
-                {user ? `Welcome back, ${user.displayName.split(' ')[0]}` : 'Welcome back'}
-              </Text>
-              <Text color="text-weak">
-                Your aligned accounts, relationship health and services spend — in one
-                place.
-              </Text>
-            </Box>
-
-            {/* No account passed → the modal renders its account picker. */}
-            <LogMeetingButton onClick={() => openMeetingLog()} />
-          </Box>
+          <PageHeader
+            /* PLACEHOLDER — the display name comes from the mock service.
+               In production Power Pages supplies the Entra ID identity. */
+            title={
+              user ? `Welcome back, ${user.displayName.split(' ')[0]}` : 'Welcome back'
+            }
+            subtitle="Your aligned accounts, relationship health and services spend — in one place."
+            /* No account passed → the modal renders its account picker. */
+            actions={<LogMeetingButton onClick={() => openMeetingLog()} />}
+          />
         </motion.div>
 
         {/* Assistant entry point sits directly under the greeting: it is the

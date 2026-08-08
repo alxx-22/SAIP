@@ -88,7 +88,7 @@ export function SaipAiPrompt() {
             pad={{ horizontal: 'small', vertical: 'xsmall' }}
             round="medium"
             background="background-back"
-            border={{ color: focused ? 'border-selected' : 'border-weak' }}
+            border={{ color: focused ? 'var(--saip-accent)' : 'border-weak' }}
             style={{
               width: '100%',
               boxShadow: focused && !reduced ? glow.primary : 'none',

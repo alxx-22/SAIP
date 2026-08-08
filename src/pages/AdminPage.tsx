@@ -3,6 +3,7 @@ import { Box, Text } from 'grommet';
 import { UserAdmin } from 'grommet-icons';
 import { motion } from 'framer-motion';
 import { useAppMotion } from '@/motion/useAppMotion';
+import { PageHeader } from '@/components/shell/PageHeader';
 import { duration, easing } from '@/motion/tokens';
 import { UsersPanel } from '@/components/admin/UsersPanel';
 import { RolesPanel } from '@/components/admin/RolesPanel';
@@ -49,18 +50,17 @@ export function AdminPage() {
 
   return (
     <Box pad={{ horizontal: 'medium', vertical: 'medium' }} gap="medium">
-      <Box gap="xxsmall">
-        <Box direction="row" align="center" gap="small">
-          <UserAdmin color="var(--saip-accent)" />
-          <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
-            Admin
-          </Text>
-        </Box>
-        <Text color="text-weak" style={{ maxWidth: '76ch' }}>
-          Configuration held as data. Change what the app asks, the lists it
-          offers and who can reach it — without changing the front end.
-        </Text>
-      </Box>
+      <PageHeader
+        title={
+          <Box direction="row" align="center" gap="small">
+            <UserAdmin color="var(--saip-accent)" />
+            <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
+              Admin
+            </Text>
+          </Box>
+        }
+        subtitle="Configuration held as data. Change what the app asks, the lists it offers and who can reach it — without changing the front end."
+      />
 
       {/* The honest caveat, in the product rather than only in the code. */}
       <Box
