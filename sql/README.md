@@ -11,6 +11,22 @@ across that boundary is asserted by `990_verify.sql`, not by the engine — a FK
 to a mirrored table breaks the moment the mirror refreshes, and it would make
 this database undeployable on its own.
 
+### The saip schema is shared
+
+Dataflow Gen2 destinations land upstream tables (account/sales alignments,
+opportunity product) in the **`saip` schema alongside SAIP's own tables**, not
+in `dbo`. That works, and nothing here depends on separating them — but it means
+*schema* no longer tells you *ownership*, so two things follow:
+
+- **`990_verify.sql` checks by an explicit ownership list**, not by schema.
+  Scoping structural checks to "everything in `saip`" would fail on tables this
+  deployment does not control and cannot fix. The list at the top of `990` is
+  the authority on what SAIP owns.
+- **A Replace-mode dataflow pointed at a name SAIP owns would drop that table
+  and its data on the next refresh.** `990` prints every table in the schema it
+  does not own so the collision is visible before a refresh finds it. Check that
+  list after adding any dataflow.
+
 ---
 
 ## Run order

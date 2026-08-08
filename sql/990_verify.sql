@@ -25,26 +25,34 @@ DECLARE @fail int = 0, @n int;
 
 PRINT '--- 1. Structure -----------------------------------------------------';
 
-;WITH expected (object_name, object_type) AS
-(
-    SELECT * FROM (VALUES
-        ('saip.capability','U'),('saip.role','U'),('saip.role_capability','U'),
-        ('saip.user','U'),('saip.user_role','U'),
-        ('saip.question_section','U'),('saip.option_set','U'),('saip.option','U'),
-        ('saip.question','U'),('saip.question_system_reference','U'),
-        ('saip.account_monitoring','U'),('saip.account_monitoring_answer','U'),
-        ('saip.account_monitoring_answer_option','U'),
-        ('saip.meeting','U'),('saip.meeting_tag','U'),('saip.meeting_answer','U'),
-        ('saip.incentive','U'),('saip.incentive_account','U'),
-        ('saip.incentive_user','U'),('saip.incentive_role','U'),
-        ('saip.incentive_resource','U'),
-        ('saip.user_preference','U'),
-        ('saip.vw_user_access','V'),('saip.vw_incentive','V'),
-        ('saip.vw_user_incentive','V'),('saip.vw_account_monitoring_wide','V'),
-        ('saip.vw_overdue_monitoring','V')
-    ) v (object_name, object_type)
-)
-SELECT @n = COUNT(*) FROM expected e
+/* THE OWNERSHIP LIST — every object this deployment creates.
+   ---------------------------------------------------------------------------
+   This is a temp table rather than a CTE because the structure checks below
+   scope themselves to it, and that scoping is the point: dataflow destinations
+   can land upstream tables in the saip schema, so "everything in the schema"
+   is no longer the same set as "everything we own". Checking by schema would
+   then fail on tables we do not control and cannot fix.
+
+   Anything not on this list is somebody else's table, wherever it sits. */
+DROP TABLE IF EXISTS #owned;
+CREATE TABLE #owned (object_name sysname, object_type char(1));
+INSERT INTO #owned (object_name, object_type) VALUES
+    ('saip.capability','U'),('saip.role','U'),('saip.role_capability','U'),
+    ('saip.user','U'),('saip.user_role','U'),
+    ('saip.question_section','U'),('saip.option_set','U'),('saip.option','U'),
+    ('saip.question','U'),('saip.question_system_reference','U'),
+    ('saip.account_monitoring','U'),('saip.account_monitoring_answer','U'),
+    ('saip.account_monitoring_answer_option','U'),
+    ('saip.meeting','U'),('saip.meeting_tag','U'),('saip.meeting_answer','U'),
+    ('saip.incentive','U'),('saip.incentive_account','U'),
+    ('saip.incentive_user','U'),('saip.incentive_role','U'),
+    ('saip.incentive_resource','U'),
+    ('saip.user_preference','U'),
+    ('saip.vw_user_access','V'),('saip.vw_incentive','V'),
+    ('saip.vw_user_incentive','V'),('saip.vw_account_monitoring_wide','V'),
+    ('saip.vw_overdue_monitoring','V');
+
+SELECT @n = COUNT(*) FROM #owned e
 WHERE OBJECT_ID(e.object_name, e.object_type) IS NULL;
 PRINT IIF(@n = 0, 'PASS  every expected table and view exists',
                   CONCAT('FAIL  ', @n, ' expected object(s) missing'));
@@ -54,31 +62,82 @@ SET @fail += IIF(@n = 0, 0, 1);
    fail at runtime with "No primary key exists in table". Worth asserting rather
    than trusting, because the failure surfaces only when a user first saves. */
 SELECT @n = COUNT(*)
-FROM sys.tables t
+FROM #owned o
+INNER JOIN sys.tables t      ON t.object_id = OBJECT_ID(o.object_name, 'U')
 INNER JOIN sys.indexes i     ON i.object_id = t.object_id AND i.is_primary_key = 1
 INNER JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.index_id = i.index_id
 INNER JOIN sys.columns c     ON c.object_id = t.object_id AND c.column_id = ic.column_id
 INNER JOIN sys.types ty      ON ty.user_type_id = c.user_type_id
-WHERE SCHEMA_NAME(t.schema_id) = 'saip'
+WHERE o.object_type = 'U'
   AND ty.name NOT IN ('uniqueidentifier','int','bigint','smallint');
 PRINT IIF(@n = 0, 'PASS  every primary key is GUID or integer (Dataverse virtual table rule)',
                   CONCAT('FAIL  ', @n, ' table(s) have a primary key Dataverse cannot write through'));
+SET @fail += IIF(@n = 0, 0, 1);
+
+/* NO primary key is the case the check above cannot see, because it joins
+   through the primary key index to find one. A table without one is invisible
+   to it and fails at exactly the same moment for exactly the same reason. */
+SELECT @n = COUNT(*)
+FROM #owned o
+INNER JOIN sys.tables t ON t.object_id = OBJECT_ID(o.object_name, 'U')
+WHERE o.object_type = 'U'
+  AND NOT EXISTS (SELECT 1 FROM sys.indexes i
+                  WHERE i.object_id = t.object_id AND i.is_primary_key = 1);
+PRINT IIF(@n = 0, 'PASS  every table has a primary key',
+                  CONCAT('FAIL  ', @n, ' table(s) have no primary key at all'));
 SET @fail += IIF(@n = 0, 0, 1);
 
 /* Composite primary keys are equally fatal for a virtual table. */
 SELECT @n = COUNT(*)
 FROM (
     SELECT i.object_id
-    FROM sys.tables t
+    FROM #owned o
+    INNER JOIN sys.tables t ON t.object_id = OBJECT_ID(o.object_name, 'U')
     INNER JOIN sys.indexes i ON i.object_id = t.object_id AND i.is_primary_key = 1
     INNER JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.index_id = i.index_id
-    WHERE SCHEMA_NAME(t.schema_id) = 'saip'
+    WHERE o.object_type = 'U'
     GROUP BY i.object_id
     HAVING COUNT(*) > 1
 ) x;
 PRINT IIF(@n = 0, 'PASS  no composite primary keys',
                   CONCAT('FAIL  ', @n, ' table(s) have a composite primary key'));
 SET @fail += IIF(@n = 0, 0, 1);
+
+/* THE SCHEMA IS SHARED — say so out loud rather than let it surprise someone.
+   Dataflow Gen2 destinations can be pointed at the saip schema, which puts
+   upstream tables alongside ours. That is survivable, but it carries one real
+   hazard worth naming: a Replace-mode dataflow aimed at a table name we own
+   would drop our table and its data on the next refresh.
+
+   NOT a failure — it is a legitimate deployment choice. It is listed so the
+   boundary stays visible, and so a name collision is noticed before a refresh
+   finds it. */
+DECLARE @foreign TABLE (object_name sysname);
+INSERT INTO @foreign (object_name)
+SELECT CONCAT('saip.', t.name)
+FROM sys.tables t
+WHERE SCHEMA_NAME(t.schema_id) = 'saip'
+  AND NOT EXISTS (SELECT 1 FROM #owned o
+                  WHERE o.object_type = 'U'
+                    AND OBJECT_ID(o.object_name, 'U') = t.object_id);
+
+SELECT @n = COUNT(*) FROM @foreign;
+IF @n = 0
+    PRINT 'NOTE  the saip schema contains only SAIP-owned tables';
+ELSE
+BEGIN
+    PRINT CONCAT('NOTE  ', @n, ' table(s) in the saip schema are not owned by this deployment:');
+    DECLARE @name sysname;
+    DECLARE fk CURSOR LOCAL FAST_FORWARD FOR SELECT object_name FROM @foreign ORDER BY object_name;
+    OPEN fk; FETCH NEXT FROM fk INTO @name;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        PRINT CONCAT('        ', @name);
+        FETCH NEXT FROM fk INTO @name;
+    END
+    CLOSE fk; DEALLOCATE fk;
+    PRINT '      Confirm no dataflow destination shares a name with a SAIP table.';
+END
 
 PRINT '';
 PRINT '--- 2. Seed ----------------------------------------------------------';
@@ -230,6 +289,8 @@ PRINT '======================================================================';
 PRINT IIF(@fail = 0, 'RESULT: PASS — deployment verified',
                      CONCAT('RESULT: FAIL — ', @fail, ' check(s) failed, see above'));
 PRINT '======================================================================';
+
+DROP TABLE IF EXISTS #owned;
 GO
 
 SELECT script_name, applied_on, applied_by, notes
