@@ -4,7 +4,7 @@ Creates 16 native Dataverse tables and seeds them from the app's own fixtures, s
 the prototype runs on data that survives a page reload.
 
 ```bash
-export DATAVERSE_URL="https://orgb9e83276.crm4.dynamics.com"
+export DATAVERSE_URL="https://orgb9e83276.crm.dynamics.com"
 export DATAVERSE_TOKEN="<bearer token>"
 
 node scripts/dataverse/create-tables.mjs --dry-run   # review, no network calls
@@ -59,26 +59,25 @@ Two options. Neither is stored anywhere by these scripts.
 ```bash
 az login
 export DATAVERSE_TOKEN=$(az account get-access-token \
-  --resource "https://orgb9e83276.crm4.dynamics.com" \
+  --resource "https://orgb9e83276.crm.dynamics.com" \
   --query accessToken -o tsv)
 ```
 
 **An app registration** — better for anything repeatable, and you need a service
 principal for the SQL connector anyway. Grant it the *System Customizer* role in
 the environment, then use the client-credentials flow with
-`scope=https://<org>.crm4.dynamics.com/.default`.
+`scope=https://orgb9e83276.crm.dynamics.com/.default`.
 
-### Check the region number
+### The org URL
 
-`DATAVERSE_URL` must be exact. The org id is `orgb9e83276`, but the region
-segment varies — `crm.dynamics.com` (North America), `crm4` (EMEA), `crm11` (UK).
-Copy it from the address bar in the maker portal, or:
-
-```bash
-pac org list
+```
+https://orgb9e83276.crm.dynamics.com
 ```
 
-A wrong region fails DNS or 401s, neither of which says "wrong region".
+Confirmed: United States region, so the segment is plain `crm` with no number.
+Worth knowing if this ever moves — the segment varies by region (`crm4` is EMEA,
+`crm11` UK), and a wrong one fails DNS or 401s, neither of which says "wrong
+region". `pac org list` prints the real value.
 
 ---
 
