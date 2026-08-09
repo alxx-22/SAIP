@@ -1,4 +1,4 @@
-<#
+﻿<#
   Creates the SAIP demo tables in Dataverse.
 
     powershell -ExecutionPolicy Bypass -File .\Create-Tables.ps1 -DryRun
@@ -37,7 +37,7 @@ function Note($mark, $text, $detail = '') {
 
 Write-Host ''
 Write-Host "Dataverse: $script:DataverseUrl"
-Write-Host "Solution:  $script:Solution$(if ($DryRun) { '   (DRY RUN — nothing will be written)' })"
+Write-Host "Solution:  $script:Solution$(if ($DryRun) { '   (DRY RUN -- nothing will be written)' })"
 Write-Host ''
 
 if ($DryRun) {
@@ -69,7 +69,7 @@ $script:Token = Get-DataverseToken
 $existingPublisher = Get-Dv "publishers?`$filter=uniquename eq '$($schema.prefix)'&`$select=publisherid"
 if ($existingPublisher.value.Count -gt 0) {
   $publisherId = $existingPublisher.value[0].publisherid
-  Note '·' "publisher $($schema.prefix)"
+  Note '-' "publisher $($schema.prefix)"
   $skipped++
 }
 else {
@@ -93,7 +93,7 @@ else {
 #>
 $existingSolution = Get-Dv "solutions?`$filter=uniquename eq '$script:Solution'&`$select=solutionid"
 if ($existingSolution.value.Count -gt 0) {
-  Note '·' "solution $script:Solution"
+  Note '-' "solution $script:Solution"
   $skipped++
 }
 else {
@@ -116,7 +116,7 @@ foreach ($table in $schema.tables) {
   $exists = Get-Dv "EntityDefinitions(LogicalName='$($table.logicalName)')?`$select=LogicalName" -AllowNotFound
 
   if ($exists) {
-    Note '·' $table.logicalName
+    Note '-' $table.logicalName
     $skipped++
   }
   else {
@@ -131,7 +131,7 @@ foreach ($table in $schema.tables) {
       -AllowNotFound
 
     if ($columnExists) {
-      Note '·' "  $($column.logicalName)"
+      Note '-' "  $($column.logicalName)"
       $skipped++
       continue
     }
@@ -148,7 +148,7 @@ foreach ($table in $schema.tables) {
 # Power Pages site, and the error reads like a permissions problem.
 
 Write-Host ''
-Write-Host 'Publishing customisations…' -ForegroundColor Cyan
+Write-Host 'Publishing customisations...' -ForegroundColor Cyan
 Post-Dv 'PublishAllXml' @{} | Out-Null
 
 # ── The handoff file ─────────────────────────────────────────────────────────
@@ -168,4 +168,4 @@ Write-Host "Wrote $($rows.Count) entity set name(s) to $outFile" -ForegroundColo
 Write-Host "Done. $created created, $skipped already present." -ForegroundColor Cyan
 Write-Host ''
 Write-Host 'Next:  powershell -ExecutionPolicy Bypass -File .\Seed-Data.ps1'
-Write-Host 'Then send entity-sets.json back — it is what the app needs to call these tables.'
+Write-Host 'Then send entity-sets.json back -- it is what the app needs to call these tables.'

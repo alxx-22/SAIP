@@ -1,4 +1,4 @@
-<#
+﻿<#
   Seeds the SAIP demo tables.
 
     powershell -ExecutionPolicy Bypass -File .\Seed-Data.ps1 -DryRun
@@ -36,7 +36,7 @@ if (Test-Path $entitySetsFile) {
   $entitySets = Get-Content $entitySetsFile -Raw | ConvertFrom-Json
 }
 elseif (-not $DryRun) {
-  throw "Missing $entitySetsFile — run Create-Tables.ps1 first."
+  throw "Missing $entitySetsFile -- run Create-Tables.ps1 first."
 }
 
 <#
@@ -70,7 +70,7 @@ foreach ($table in $payload.tables) {
       $inserted += $table.records.Count
       continue
     }
-    Write-Host "  ! $logicalName not in entity-sets.json — run Create-Tables.ps1 first" -ForegroundColor Yellow
+    Write-Host "  ! $logicalName not in entity-sets.json -- run Create-Tables.ps1 first" -ForegroundColor Yellow
     continue
   }
 
@@ -110,4 +110,4 @@ foreach ($table in $payload.tables) {
 
 Write-Host ''
 Write-Host "Done. $inserted created, $updated updated." -ForegroundColor Cyan
-Write-Host 'Rows removed from the fixtures are left in place — delete those by hand if you want them gone.' -ForegroundColor DarkGray
+Write-Host 'Rows removed from the fixtures are left in place -- delete those by hand if you want them gone.' -ForegroundColor DarkGray

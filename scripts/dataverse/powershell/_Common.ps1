@@ -1,4 +1,4 @@
-<#
+﻿<#
   Shared plumbing for the SAIP Dataverse scripts.
 
   Dot-sourced by Create-Tables.ps1 and Seed-Data.ps1. Not run directly.
@@ -73,9 +73,9 @@ function Get-DataverseToken {
   }
 
   Write-Host ''
-  Write-Host '  ─────────────────────────────────────────────────────────────'
+  Write-Host '  ------------------------------------------------------------'
   Write-Host "  $($request.message)" -ForegroundColor Cyan
-  Write-Host '  ─────────────────────────────────────────────────────────────'
+  Write-Host '  ------------------------------------------------------------'
   Write-Host ''
 
   # Opening the browser is a convenience, not a requirement — the message above
@@ -190,7 +190,7 @@ function Invoke-Dv {
           $parsed = 0
           if ([int]::TryParse([string]$retryAfter, [ref]$parsed) -and $parsed -gt 0) { $wait = $parsed }
         }
-        Write-Host "    throttled, waiting ${wait}s…" -ForegroundColor DarkGray
+        Write-Host "    throttled, waiting ${wait}s..." -ForegroundColor DarkGray
         Start-Sleep -Seconds $wait
         continue
       }
