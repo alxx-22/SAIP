@@ -656,6 +656,24 @@ Status colours — ok / warning / critical — deliberately do **not** follow th
 accent. They mean something, and recolouring them to match a preference would
 make a red gauge stop reading as a problem.
 
+### One deliberate exception: the account gauges
+
+The three score gauges on the account header scale their arc **within the
+selected accent** rather than using the ok / warning / critical ramp. Asked for
+directly, and it does make the header read as one thing rather than a traffic
+light bolted onto a themed page. The trade is worth stating:
+
+- The arc encodes **magnitude**, twice over — by how far it sweeps and by how
+  saturated it is. `color-mix` scales accent against `border-default` from 40%
+  at zero to 100% at a hundred, so it works for any accent without a hand-built
+  ramp per colour. The SVG also carries a flat `stroke` attribute, so a browser
+  without `color-mix` falls back to the plain accent rather than to nothing.
+- The **status** is still carried — by a semantic dot beside the label and by
+  the accessible name — but it is no longer what shouts.
+
+If "which account is red" ever needs to be visible from across the room, make
+the dot bigger. Do not put the status ramp back on the arc.
+
 ### The rule: decorative follows the accent, semantic never does
 
 If a colour is **decoration** — focus rings, hover glows, selection indicators,

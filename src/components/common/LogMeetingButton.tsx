@@ -61,10 +61,16 @@ export function LogMeetingButton({
         justifyContent: 'center',
         gap: 0,
         font: 'inherit',
-        fontSize: '1rem',
+        fontSize: '0.9375rem',
         fontWeight: 500,
         cursor: disabled ? 'default' : 'pointer',
-        padding: '10px 20px',
+        /*
+          Height is fixed rather than derived from padding, so this button and
+          the notification bell beside it are the same size. Padding-derived
+          heights drift the moment the font metrics change.
+        */
+        height: 42,
+        padding: '0 18px',
         borderRadius: 'var(--hpe-radius-medium)',
         border: 'none',
         whiteSpace: 'nowrap',

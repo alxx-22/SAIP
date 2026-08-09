@@ -7,28 +7,44 @@ import { useAppMotion } from '@/motion/useAppMotion';
 import { SkeletonBar } from '@/components/common/Skeleton';
 
 /**
- * The three account scores, compressed to fit on the header line.
+ * The three account scores, compressed onto the header line.
  *
  * They used to be a full `<ScoresOverview>` section between the header and the
- * tabs, which cost about 180px of vertical space on every account — before the
- * rep had seen a single thing they could act on. Here they sit in the gap
- * between the account name and the Log a meeting button and cost nothing.
+ * tabs, costing ~180px on every account before the rep saw anything they could
+ * act on. Here they sit centred in the gap between the account name and the
+ * Log a meeting button and cost nothing.
  *
- * STATUS COLOUR IS NOT THE ACCENT, and this is the one place that distinction
- * matters most. A gauge's colour MEANS something — ok, watch, attention — so it
- * stays on the semantic tokens no matter which accent is chosen. Recolouring a
- * red gauge to match a theme preference would make it stop reading as a problem.
- * Everything decorative follows `--saip-accent`; nothing that carries meaning
- * does.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE ARC IS SCALED IN THE SELECTED ACCENT, NOT THE STATUS RAMP
  *
- * Each gauge is a button, because "my proximity score is red" and "what do I do
- * about it" should be one click apart rather than a hunt through the tabs.
+ * Asked for directly, and it does make the header read as one thing rather than
+ * a traffic light bolted onto a themed page. It is worth being explicit about
+ * the trade, because everywhere else in this app colour that MEANS something
+ * stays semantic:
+ *
+ *   - The arc encodes MAGNITUDE, twice over — by how far it sweeps, and by how
+ *     saturated it is. A weak score is a short, pale arc; a strong one is a
+ *     long, saturated one. That is a sequential scale, which is the honest
+ *     encoding for a 0–100 number.
+ *   - The STATUS — on track / monitor / needs attention — is still carried, by
+ *     a semantic dot beside the label and by the accessible name. It is no
+ *     longer carried by the arc.
+ *
+ * So nothing is lost, but the thing that shouts is now magnitude rather than
+ * status. If a rep ever needs "which of my accounts is red" to be visible from
+ * across the room, the dot is the part to make bigger — not the arc.
+ *
+ * `color-mix` does the scaling, so it works for any accent without a hand-built
+ * ramp per colour. The SVG carries a plain `stroke` ATTRIBUTE as well: a browser
+ * that does not know `color-mix` drops the style declaration and falls back to
+ * the flat accent rather than to nothing.
  */
 
-const STATUS: Record<ScoreStatus, { stroke: string; label: string }> = {
-  strong: { stroke: 'var(--hpe-color-foreground-ok)', label: 'On track' },
-  watch: { stroke: 'var(--hpe-color-foreground-warning)', label: 'Monitor' },
-  attention: { stroke: 'var(--hpe-color-foreground-critical)', label: 'Needs attention' },
+/** Semantic status, still shown — as a dot, not as the arc. */
+const STATUS: Record<ScoreStatus, { color: string; label: string }> = {
+  strong: { color: 'var(--hpe-color-foreground-ok)', label: 'On track' },
+  watch: { color: 'var(--hpe-color-foreground-warning)', label: 'Monitor' },
+  attention: { color: 'var(--hpe-color-foreground-critical)', label: 'Needs attention' },
 };
 
 /** Short labels — the full ones do not fit at this size. */
@@ -38,10 +54,21 @@ const SHORT_LABEL: Record<ScoreKey, string> = {
   spend: 'Spend',
 };
 
-const SIZE = 46;
-const STROKE = 5;
+const SIZE = 52;
+const STROKE = 6;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+/**
+ * How much accent to mix in at a given score.
+ *
+ * Floored at 40% so a poor score is still clearly drawn — a scale that fades to
+ * nothing would make the worst number the hardest one to see.
+ */
+function arcColor(value: number): string {
+  const strength = Math.round(40 + (Math.max(0, Math.min(100, value)) / 100) * 60);
+  return `color-mix(in oklab, var(--saip-accent) ${strength}%, var(--hpe-color-border-default))`;
+}
 
 export function ScoreMiniRow({
   accountId,
@@ -61,9 +88,9 @@ export function ScoreMiniRow({
   if (loading) {
     return (
       <Box direction="row" gap="small" flex={false} aria-hidden>
-        <SkeletonBar height="62px" width="76px" />
-        <SkeletonBar height="62px" width="76px" />
-        <SkeletonBar height="62px" width="76px" />
+        <SkeletonBar height="72px" width="84px" />
+        <SkeletonBar height="72px" width="84px" />
+        <SkeletonBar height="72px" width="84px" />
       </Box>
     );
   }
@@ -73,9 +100,10 @@ export function ScoreMiniRow({
   return (
     <Box
       direction="row"
-      gap="small"
+      gap="medium"
       flex={false}
       wrap
+      justify="center"
       role="group"
       aria-label="Account scores"
     >
@@ -111,7 +139,7 @@ function ScoreMini({
   const offset = CIRCUMFERENCE * (1 - score.value / 100);
 
   const body = (
-    <Box align="center" gap="2px" flex={false}>
+    <Box align="center" gap="3px" flex={false}>
       <Box style={{ position: 'relative', width: SIZE, height: SIZE }} flex={false}>
         <svg
           width={SIZE}
@@ -133,11 +161,16 @@ function ScoreMini({
             cy={SIZE / 2}
             r={RADIUS}
             fill="none"
-            stroke={status.stroke}
+            /* Attribute = fallback, style = the scaled colour. A browser without
+               `color-mix` drops the style and still draws the flat accent. */
+            stroke="var(--saip-accent)"
+            style={{ stroke: arcColor(score.value) }}
             strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
-            initial={reduced ? { strokeDashoffset: offset } : { strokeDashoffset: CIRCUMFERENCE }}
+            initial={
+              reduced ? { strokeDashoffset: offset } : { strokeDashoffset: CIRCUMFERENCE }
+            }
             animate={{ strokeDashoffset: offset }}
             transition={
               reduced
@@ -148,7 +181,7 @@ function ScoreMini({
         </svg>
 
         {/* Absolutely centred rather than a flex child, so the number never
-            shifts the ring's geometry as it counts up in width. */}
+            shifts the ring's geometry as its width changes. */}
         <Box
           style={{
             position: 'absolute',
@@ -158,20 +191,33 @@ function ScoreMini({
             justifyContent: 'center',
           }}
         >
-          <Text size="small" weight={600} color="text-strong">
+          <Text size="medium" weight={600} color="text-strong">
             {score.value}
           </Text>
         </Box>
       </Box>
 
-      <Text size="xsmall" color="text-weak" style={{ whiteSpace: 'nowrap' }}>
-        {SHORT_LABEL[score.key]}
-      </Text>
+      {/* The status the arc no longer carries. Dot plus label, so it is legible
+          without relying on colour alone. */}
+      <Box direction="row" align="center" gap="4px" flex={false}>
+        <span
+          aria-hidden
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: status.color,
+            flex: '0 0 auto',
+          }}
+        />
+        <Text size="xsmall" color="text-weak" style={{ whiteSpace: 'nowrap' }}>
+          {SHORT_LABEL[score.key]}
+        </Text>
+      </Box>
     </Box>
   );
 
-  // The accessible name carries everything the compact visual cannot: the full
-  // label, the value, and what the colour is saying.
+  // The accessible name carries everything the compact visual cannot.
   const description = `${score.label}: ${score.value} out of 100, ${status.label}`;
 
   if (!onSelect) {

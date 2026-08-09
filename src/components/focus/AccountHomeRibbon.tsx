@@ -32,6 +32,9 @@ import { useAppMotion } from '@/motion/useAppMotion';
 /** Opportunities closing inside this window count as "closing soon". */
 const CLOSING_SOON_DAYS = 90;
 
+/** How many rows each card previews. */
+const PREVIEW_COUNT = 3;
+
 /**
  * Home — the first thing anyone sees on an account.
  *
@@ -39,12 +42,17 @@ const CLOSING_SOON_DAYS = 90;
  * the question a rep actually arrives with: **what needs me, on this account,
  * today.**
  *
- * It stores nothing and adds no data of its own. Each card is a count and a
- * figure derived from the tab behind it, and clicking one goes there. That is
- * the whole design: the summary is a router, not a report, so nothing here can
+ * It stores nothing and adds no data of its own. Each card is a count, a
+ * figure, and the next three things behind it — clicking one goes to the tab
+ * that owns them. The summary is a router, not a report, so nothing here can
  * disagree with the detail it points at.
  *
- * A card that has nothing to say is not rendered. An account with no incentives
+ * WHY THREE. A bare count tells you there is work but not whether it is yours
+ * to worry about — "2 contracts renewing" could be £4k or £4m. Three named rows
+ * is enough to decide whether to open the tab, and few enough that the card
+ * stays a summary rather than becoming a second copy of the table.
+ *
+ * A card with nothing to say is not rendered. An account with no incentives
  * shows no incentives card, rather than a card saying zero — a screen of zeroes
  * trains people to stop reading it.
  */
@@ -53,7 +61,9 @@ export function AccountHomeRibbon({
   onOpenRibbon,
 }: {
   accountId: string;
-  onOpenRibbon: (key: 'value' | 'contracts' | 'opportunities' | 'monitoring' | 'incentives') => void;
+  onOpenRibbon: (
+    key: 'value' | 'contracts' | 'opportunities' | 'monitoring' | 'incentives',
+  ) => void;
 }) {
   const service = useAccountService();
   const navigate = useNavigate();
@@ -84,8 +94,8 @@ export function AccountHomeRibbon({
     loadingContracts || loadingOpportunities || loadingIncentives || loadingNotifications;
 
   /* ── Contracts renewing ─────────────────────────────────────────────────
-     Sorted by renewal date so "next to renew" is the first one, which is the
-     figure the card leads with. */
+     Sorted by renewal date, so the preview is genuinely "next to expire"
+     rather than whatever order the service happened to return. */
   const renewing = useMemo(() => {
     const soon = (contracts ?? [])
       .filter((c) => {
@@ -93,7 +103,7 @@ export function AccountHomeRibbon({
         return days >= 0 && days <= RENEWAL_SOON_DAYS;
       })
       .sort((a, b) => a.renewalDate.localeCompare(b.renewalDate));
-    return { list: soon, next: soon[0] };
+    return soon;
   }, [contracts]);
 
   /* ── Opportunities closing ──────────────────────────────────────────── */
@@ -108,36 +118,43 @@ export function AccountHomeRibbon({
       })
       .sort((a, b) => a.closeDate.localeCompare(b.closeDate));
     return {
-      open,
       soon,
       value: soon.reduce((sum, o) => sum + o.totalValue, 0),
       currency: open[0]?.currency ?? 'GBP',
     };
   }, [opportunities]);
 
-  /* ── Active incentives nominating this account ──────────────────────── */
+  /* ── Active incentives nominating this account ──────────────────────────
+     Ordered by the ones ENDING SOONEST, because that is the one a rep can
+     still do something about. An open-ended incentive has no deadline to
+     miss, so it sorts last rather than first. */
   const activeIncentives = useMemo(
     () =>
-      (incentives ?? []).filter(
-        (i) =>
-          i.nominatedAccountIds.includes(accountId) &&
-          incentiveStatus(i.endDate) === 'active',
-      ),
+      (incentives ?? [])
+        .filter(
+          (i) =>
+            i.nominatedAccountIds.includes(accountId) &&
+            incentiveStatus(i.endDate) === 'active',
+        )
+        .sort((a, b) => (a.endDate ?? '9999-12-31').localeCompare(b.endDate ?? '9999-12-31')),
     [incentives, accountId],
   );
 
-  /* ── Monitoring questions outstanding ───────────────────────────────── */
+  /* ── Monitoring questions outstanding ───────────────────────────────────
+     `getNotifications` already returns most severe first, so the first three
+     are the three most important. Not re-sorted here — that would put the
+     definition of "important" in two places. */
   const accountNotifications = useMemo(
     () => (notifications ?? []).filter((n) => n.accountId === accountId),
     [notifications, accountId],
   );
 
   if (loading) {
-    return <SkeletonRows rows={3} height="96px" label="Loading account summary" />;
+    return <SkeletonRows rows={3} height="150px" label="Loading account summary" />;
   }
 
   const nothingToShow =
-    renewing.list.length === 0 &&
+    renewing.length === 0 &&
     closing.soon.length === 0 &&
     activeIncentives.length === 0 &&
     accountNotifications.length === 0;
@@ -181,28 +198,31 @@ export function AccountHomeRibbon({
           display: 'grid',
           // Cards find their own column count; nothing is pinned to a
           // breakpoint, so this survives the nav rail expanding and collapsing.
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
           gap: 'var(--hpe-spacing-small)',
+          alignItems: 'stretch',
         }}
       >
-        {renewing.list.length > 0 && (
+        {renewing.length > 0 && (
           <motion.div variants={staggerItem(reduced)}>
             <SummaryCard
               icon={<DocIcon size="small" color="var(--saip-accent)" />}
               label="Contracts renewing"
-              value={String(renewing.list.length)}
+              value={String(renewing.length)}
               unit={`in ${RENEWAL_SOON_DAYS} days`}
-              detail={
-                renewing.next
-                  ? `Next: ${formatCurrencyCompact(
-                      renewing.next.value,
-                      renewing.next.currency,
-                    )} on ${formatDate(renewing.next.renewalDate)}`
-                  : undefined
-              }
-              tone={renewing.list.length > 0 ? 'warning' : 'neutral'}
+              tone="warning"
               reduced={reduced}
               onOpen={() => onOpenRibbon('contracts')}
+              items={renewing.slice(0, PREVIEW_COUNT).map((c) => ({
+                id: c.contractId,
+                // Contracts are referred to by number, not by SLA — every
+                // contract has an SLA, so it would not distinguish them.
+                primary: c.contractId,
+                secondary: `${formatCurrencyCompact(c.value, c.currency)} · ${formatDate(
+                  c.renewalDate,
+                )}`,
+              }))}
+              moreCount={renewing.length - PREVIEW_COUNT}
             />
           </motion.div>
         )}
@@ -214,10 +234,19 @@ export function AccountHomeRibbon({
               label="Opportunities closing"
               value={String(closing.soon.length)}
               unit={`in ${CLOSING_SOON_DAYS} days`}
-              detail={`${formatCurrencyCompact(closing.value, closing.currency)} of pipeline`}
+              footnote={`${formatCurrencyCompact(closing.value, closing.currency)} of pipeline`}
               tone="neutral"
               reduced={reduced}
               onOpen={() => onOpenRibbon('opportunities')}
+              items={closing.soon.slice(0, PREVIEW_COUNT).map((o) => ({
+                id: o.opportunityId,
+                primary: o.name,
+                secondary: `${formatCurrencyCompact(
+                  o.totalValue,
+                  o.currency,
+                )} · ${formatDate(o.closeDate)}`,
+              }))}
+              moreCount={closing.soon.length - PREVIEW_COUNT}
             />
           </motion.div>
         )}
@@ -229,10 +258,15 @@ export function AccountHomeRibbon({
               label="Active incentives"
               value={String(activeIncentives.length)}
               unit={activeIncentives.length === 1 ? 'campaign' : 'campaigns'}
-              detail={activeIncentives.map((i) => i.title).join(' · ')}
               tone="neutral"
               reduced={reduced}
               onOpen={() => onOpenRibbon('incentives')}
+              items={activeIncentives.slice(0, PREVIEW_COUNT).map((i) => ({
+                id: i.incentiveId,
+                primary: i.title,
+                secondary: i.endDate ? `ends ${formatDate(i.endDate)}` : 'open-ended',
+              }))}
+              moreCount={activeIncentives.length - PREVIEW_COUNT}
             />
           </motion.div>
         )}
@@ -244,19 +278,28 @@ export function AccountHomeRibbon({
               label="Monitoring questions"
               value={String(accountNotifications.length)}
               unit="outstanding"
-              detail="Dates that have gone stale or were never recorded"
               tone="warning"
               reduced={reduced}
               onOpen={() => onOpenRibbon('monitoring')}
+              items={accountNotifications.slice(0, PREVIEW_COUNT).map((n) => ({
+                id: n.id,
+                primary: n.title,
+                secondary: n.severity === 'critical' ? 'never recorded' : 'overdue',
+                marker: severityColor(n.severity),
+              }))}
+              moreCount={accountNotifications.length - PREVIEW_COUNT}
             />
           </motion.div>
         )}
       </motion.div>
 
       {/* ── The questions themselves ────────────────────────────────────────
-          A count tells you there is work; this tells you what it is. Each row
-          deep-links to the exact field, the same route the notification pane
-          uses, so the rep lands on the control with it highlighted. */}
+          Kept full-width and below the cards, deliberately. Everything else on
+          this page is read-only and derived; this is the one thing on the
+          account that only a person can do, so it gets the space rather than
+          being compressed into a card. Each row deep-links to the exact field,
+          the same route the notification pane uses, so the rep lands on the
+          control with it highlighted. */}
       {accountNotifications.length > 0 && (
         <Box gap="xsmall">
           <Text as="h3" size="medium" weight={600} color="text-strong" margin="none">
@@ -288,19 +331,42 @@ export function AccountHomeRibbon({
   );
 }
 
+function severityColor(severity: AppNotification['severity']): string {
+  return severity === 'critical'
+    ? 'var(--hpe-color-foreground-critical)'
+    : severity === 'warning'
+      ? 'var(--hpe-color-foreground-warning)'
+      : 'var(--hpe-color-foreground-info)';
+}
+
+interface PreviewItem {
+  id: string;
+  primary: string;
+  secondary: string;
+  /** Optional dot before the row — severity, where that applies. */
+  marker?: string;
+}
+
 /**
- * One headline figure, and the tab it belongs to.
+ * One headline figure, its next three items, and the tab they belong to.
  *
  * `tone` colours the left rail only — warning where something is genuinely
  * time-bound, neutral otherwise. The icons follow `--saip-accent` because they
  * are decoration; the warning rail does not, because it means something.
+ *
+ * The whole card is one button rather than a list of links. The preview is there
+ * to help you decide whether to open the tab, not to be a navigation target of
+ * its own — three separate click targets inside a card that is itself clickable
+ * would be ambiguous, and the tab behind it lists the same rows properly.
  */
 function SummaryCard({
   icon,
   label,
   value,
   unit,
-  detail,
+  footnote,
+  items,
+  moreCount,
   tone,
   reduced,
   onOpen,
@@ -309,7 +375,11 @@ function SummaryCard({
   label: string;
   value: string;
   unit?: string;
-  detail?: string;
+  /** One line under the number, before the preview — a total, usually. */
+  footnote?: string;
+  items: PreviewItem[];
+  /** How many rows are not shown. Values <= 0 render nothing. */
+  moreCount: number;
   tone: 'neutral' | 'warning';
   reduced: boolean;
   onOpen: () => void;
@@ -333,6 +403,7 @@ function SummaryCard({
         padding: 'var(--hpe-spacing-small)',
         position: 'relative',
         overflow: 'hidden',
+        display: 'flex',
       }}
     >
       {/* Left rail. Semantic where it matters, accent where it does not. */}
@@ -351,7 +422,7 @@ function SummaryCard({
         }}
       />
 
-      <Box gap="xxsmall" style={{ paddingLeft: 6, minWidth: 0 }}>
+      <Box gap="xxsmall" style={{ paddingLeft: 6, minWidth: 0, width: '100%' }}>
         <Box direction="row" align="center" justify="between" gap="xsmall">
           <Box direction="row" align="center" gap="xsmall" style={{ minWidth: 0 }}>
             {icon}
@@ -373,19 +444,73 @@ function SummaryCard({
           )}
         </Box>
 
-        {detail && (
-          <Text
-            size="xsmall"
-            color="text-weak"
-            style={{
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {detail}
+        {footnote && (
+          <Text size="xsmall" color="text-weak">
+            {footnote}
           </Text>
+        )}
+
+        {/* The preview. Separated by a rule so it reads as detail under the
+            headline rather than as more headline. */}
+        {items.length > 0 && (
+          <Box
+            gap="4px"
+            margin={{ top: '4px' }}
+            pad={{ top: 'xsmall' }}
+            border={{ side: 'top', color: 'border-weak' }}
+          >
+            {items.map((item) => (
+              <Box
+                key={item.id}
+                direction="row"
+                align="center"
+                gap="xsmall"
+                style={{ minWidth: 0 }}
+              >
+                {item.marker && (
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: item.marker,
+                      flex: '0 0 auto',
+                    }}
+                  />
+                )}
+                <Text
+                  size="xsmall"
+                  color="text-strong"
+                  style={{
+                    // Truncates rather than wraps: a wrapped row would make one
+                    // card taller than its neighbours in the same grid track.
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    flex: '1 1 auto',
+                  }}
+                  title={item.primary}
+                >
+                  {item.primary}
+                </Text>
+                <Text
+                  size="xsmall"
+                  color="text-weak"
+                  style={{ whiteSpace: 'nowrap', flex: '0 0 auto' }}
+                >
+                  {item.secondary}
+                </Text>
+              </Box>
+            ))}
+
+            {moreCount > 0 && (
+              <Text size="xsmall" color="text-weak">
+                +{moreCount} more
+              </Text>
+            )}
+          </Box>
         )}
       </Box>
     </motion.button>
@@ -403,13 +528,6 @@ function NotificationRow({
   reduced: boolean;
   onOpen: () => void;
 }) {
-  const severityColor =
-    notification.severity === 'critical'
-      ? 'var(--hpe-color-foreground-critical)'
-      : notification.severity === 'warning'
-        ? 'var(--hpe-color-foreground-warning)'
-        : 'var(--hpe-color-foreground-info)';
-
   return (
     <motion.button
       type="button"
@@ -436,7 +554,7 @@ function NotificationRow({
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: severityColor,
+            background: severityColor(notification.severity),
             flex: '0 0 auto',
           }}
         />

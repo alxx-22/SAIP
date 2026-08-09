@@ -68,11 +68,17 @@ export function PageHeader({
 
         <Box direction="row" align="center" justify="between" gap="medium" wrap>
           {/*
-            `1 1 260px` rather than Grommet's `flex`, which compiles to
-            grow-only. This block has to SHRINK so the aside and actions keep
-            their space, and to take a line of its own once the row wraps.
+            `2 1 380px` rather than Grommet's `flex`, which compiles to
+            grow-only. Three things are being asked for at once:
+
+              - SHRINK, so the aside and actions keep their space
+              - a basis wide enough that the account name, its badge and the
+                subtitle stay on one line each at desktop widths (at 260px the
+                badge dropped below the title and the subtitle ran to two lines)
+              - twice the aside's growth factor, so leftover space goes mostly
+                to the text rather than padding out the gauges
           */}
-          <Box gap="xxsmall" style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <Box gap="xxsmall" style={{ flex: '2 1 380px', minWidth: 0 }}>
             {typeof title === 'string' ? (
               <Box direction="row" align="center" gap="small" wrap>
                 <Text as="h1" size="xxlarge" weight={600} color="text-strong" margin="none">
@@ -91,7 +97,25 @@ export function PageHeader({
             )}
           </Box>
 
-          {aside}
+          {/*
+            The aside takes the LEFTOVER space and centres itself in it, rather
+            than sitting flush against the actions. `1 1 auto` beside the
+            title's `1 1 260px` means the title wins the room it needs and the
+            aside gets what remains — so the gauges sit mid-way between the
+            account name and Log a meeting instead of hugging the button.
+          */}
+          {aside && (
+            <div
+              style={{
+                flex: '1 1 auto',
+                display: 'flex',
+                justifyContent: 'center',
+                minWidth: 0,
+              }}
+            >
+              {aside}
+            </div>
+          )}
 
           {/*
             CSS gap rather than Grommet's <Box gap>: its spacer divs sit on top

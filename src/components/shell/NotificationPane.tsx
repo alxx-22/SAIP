@@ -149,11 +149,12 @@ export function NotificationPane({ refreshKey = 0 }: { refreshKey?: number }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: 40,
-          height: 40,
+          // 42 square, matching the Log a meeting button beside it.
+          width: 42,
+          height: 42,
           padding: 0,
           borderRadius: 'var(--hpe-radius-small)',
-          border: `1px solid var(--hpe-color-border-${open ? 'selected' : 'weak'})`,
+          border: `1px solid ${open ? 'var(--saip-accent)' : 'var(--hpe-color-border-weak)'}`,
           background: open
             ? 'var(--hpe-color-background-contrast)'
             : 'var(--hpe-color-background-front)',
