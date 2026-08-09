@@ -145,27 +145,36 @@ foreach ($table in $schema.tables) {
 
 # ── Publish ──────────────────────────────────────────────────────────────────
 # Without this a table exists in the maker portal but cannot be added to a
-# Power Pages site, and the error reads like a permissions problem.
+# -- Publish, and the handoff file ------------------------------------------
+#
+# Everything above has already succeeded by this point. These last two steps
+# are the ones Dataverse throttles hardest, because they follow a large
+# metadata burst -- so a failure HERE must not be reported as a failed run.
+# It is caught, explained, and pointed at the script that redoes just this bit.
 
 Write-Host ''
-Write-Host 'Publishing customisations...' -ForegroundColor Cyan
-Post-Dv 'PublishAllXml' @{} | Out-Null
+Write-Host "Created $created, skipped $skipped." -ForegroundColor Cyan
 
-# ── The handoff file ─────────────────────────────────────────────────────────
-# Entity SET names go in the Web API URL and are not derivable from the logical
-# name with any rule worth trusting, so they are read from live metadata.
+try {
+  Write-Host 'Publishing customisations...' -ForegroundColor Cyan
+  Post-Dv 'PublishAllXml' @{} | Out-Null
 
-$wanted = $schema.tables | ForEach-Object { $_.logicalName }
-$all = Get-Dv "EntityDefinitions?`$select=LogicalName,EntitySetName,SchemaName,PrimaryIdAttribute,PrimaryNameAttribute&`$filter=startswith(LogicalName,'$($schema.prefix)_')"
-$rows = $all.value | Where-Object { $wanted -contains $_.LogicalName } |
-  Select-Object LogicalName, EntitySetName, SchemaName, PrimaryIdAttribute, PrimaryNameAttribute
+  . (Join-Path $PSScriptRoot 'Write-EntitySets.ps1')
+  Write-EntitySets -Schema $schema
+}
+catch {
+  Write-Host ''
+  Write-Host 'The tables were created, but the final step did not finish:' -ForegroundColor Yellow
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host 'This is throttling after a large metadata change, not a failure of the' -ForegroundColor Yellow
+  Write-Host 'creates. Wait a minute, then run:' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host '    powershell -ExecutionPolicy Bypass -File .\Get-EntitySets.ps1' -ForegroundColor White
+  Write-Host ''
+  exit 1
+}
 
-$outFile = Join-Path $script:DataDir 'entity-sets.json'
-($rows | ConvertTo-Json -Depth 5) | Set-Content -Path $outFile -Encoding UTF8
-
-Write-Host ''
-Write-Host "Wrote $($rows.Count) entity set name(s) to $outFile" -ForegroundColor Green
-Write-Host "Done. $created created, $skipped already present." -ForegroundColor Cyan
 Write-Host ''
 Write-Host 'Next:  powershell -ExecutionPolicy Bypass -File .\Seed-Data.ps1'
 Write-Host 'Then send entity-sets.json back -- it is what the app needs to call these tables.'

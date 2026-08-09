@@ -23,10 +23,21 @@ $ErrorActionPreference = 'Stop'
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-if (-not $script:DataverseUrl) {
-  $script:DataverseUrl = if ($env:DATAVERSE_URL) { $env:DATAVERSE_URL }
-                         else { 'https://orgb9e83276.crm.dynamics.com' }
+<#
+  Read through Get-Variable, not by naming it directly.
+
+  `Set-StrictMode -Version Latest` makes referencing a variable that was never
+  assigned a terminating error. Scripts that declare a -DataverseUrl parameter
+  create it implicitly, so the direct test worked in those and threw in the one
+  script that does not -- a trap that only shows up when a new entry point is
+  added. This form is correct regardless of the caller.
+#>
+$fromCaller = Get-Variable -Name DataverseUrl -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+if (-not $fromCaller) {
+  $fromCaller = if ($env:DATAVERSE_URL) { $env:DATAVERSE_URL }
+                else { 'https://orgb9e83276.crm.dynamics.com' }
 }
+$script:DataverseUrl = $fromCaller
 $script:DataverseUrl = $script:DataverseUrl.TrimEnd('/')
 $script:ApiRoot      = "$script:DataverseUrl/api/data/v9.2/"
 $script:Solution     = if ($env:DATAVERSE_SOLUTION) { $env:DATAVERSE_SOLUTION } else { 'SAIPDemo' }
@@ -151,7 +162,16 @@ function Invoke-Dv {
   $json = $null
   if ($null -ne $Body) { $json = $Body | ConvertTo-Json -Depth 30 -Compress }
 
-  for ($attempt = 0; $attempt -lt 6; $attempt++) {
+  <#
+    Ten attempts, not six.
+
+    Dataverse throttles hard for a while AFTER a large metadata burst — the
+    124 creates land fine and then PublishAllXml and the read that follows it
+    get 429'd repeatedly. Six attempts of linear backoff (42s total) ran out
+    before the service calmed down, which failed the run at the very last
+    step, after all the real work had succeeded.
+  #>
+  for ($attempt = 0; $attempt -lt 10; $attempt++) {
     try {
       if ($null -eq $json) {
         return Invoke-RestMethod -Method $Method -Uri $uri -Headers $headers
@@ -166,7 +186,8 @@ function Invoke-Dv {
       if ($status -eq 404 -and $AllowNotFound) { return $null }
 
       if ($status -eq 429 -or $status -ge 500) {
-        $wait = 2 * ($attempt + 1)
+        # Exponential, capped: 2, 4, 8, 16, 32, 60, 60... ~4 minutes in total.
+        $wait = [Math]::Min(60, [Math]::Pow(2, $attempt + 1))
         <#
           Retry-After, read defensively.
 
