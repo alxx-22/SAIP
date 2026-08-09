@@ -146,7 +146,16 @@ function Invoke-Dv {
     [Parameter(Mandatory)][string] $Path,
     $Body,
     [hashtable] $ExtraHeaders = @{},
-    [switch] $AllowNotFound
+    [switch] $AllowNotFound,
+    <#
+      How hard to try before giving up.
+
+      Default 10 (~4 minutes) suits a call that has to succeed. A caller with a
+      cheaper alternative should pass a small number instead: spending the full
+      budget on a request you are going to abandon anyway just delays the thing
+      that would have worked.
+    #>
+    [int] $MaxAttempts = 10
   )
 
   $uri = if ($Path -like 'http*') { $Path } else { $script:ApiRoot + $Path }
@@ -171,7 +180,7 @@ function Invoke-Dv {
     before the service calmed down, which failed the run at the very last
     step, after all the real work had succeeded.
   #>
-  for ($attempt = 0; $attempt -lt 10; $attempt++) {
+  for ($attempt = 0; $attempt -lt $MaxAttempts; $attempt++) {
     try {
       if ($null -eq $json) {
         return Invoke-RestMethod -Method $Method -Uri $uri -Headers $headers
@@ -229,7 +238,7 @@ function Invoke-Dv {
   throw "$Method $Path failed after retries."
 }
 
-function Get-Dv    { param($Path, [switch]$AllowNotFound) Invoke-Dv -Method GET -Path $Path -AllowNotFound:$AllowNotFound }
+function Get-Dv    { param($Path, [switch]$AllowNotFound, [int]$MaxAttempts = 10) Invoke-Dv -Method GET -Path $Path -AllowNotFound:$AllowNotFound -MaxAttempts $MaxAttempts }
 function Post-Dv   { param($Path, $Body, [hashtable]$ExtraHeaders = @{}) Invoke-Dv -Method POST  -Path $Path -Body $Body -ExtraHeaders $ExtraHeaders }
 function Patch-Dv  { param($Path, $Body, [hashtable]$ExtraHeaders = @{}) Invoke-Dv -Method PATCH -Path $Path -Body $Body -ExtraHeaders $ExtraHeaders }
 
