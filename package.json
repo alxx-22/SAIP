@@ -13,8 +13,8 @@
     "typecheck": "tsc -b --noEmit",
     "dataverse:plan": "node scripts/dataverse/create-tables.mjs --dry-run",
     "dataverse:create": "node scripts/dataverse/create-tables.mjs",
-    "dataverse:export": "node scripts/dataverse/export-mock.mjs",
-    "dataverse:seed": "node scripts/dataverse/export-mock.mjs && node scripts/dataverse/seed.mjs"
+    "dataverse:export": "node scripts/dataverse/export-mock.mjs && node scripts/dataverse/export-schema.mjs && node scripts/dataverse/export-records.mjs",
+    "dataverse:seed": "node scripts/dataverse/export-mock.mjs && node scripts/dataverse/export-records.mjs && node scripts/dataverse/seed.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.15.0",
