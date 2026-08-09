@@ -45,7 +45,7 @@ try {
 } catch {
   if (!DRY) {
     console.error(
-      'generated/entity-sets.json is missing — run scripts/dataverse/create-tables.mjs first.',
+      'generated/entity-sets.json is missing — run create-tables.mjs first.',
     );
     process.exit(1);
   }

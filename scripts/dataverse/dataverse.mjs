@@ -21,7 +21,7 @@ const DRY = process.argv.includes('--dry-run');
 
 if (!DRY && (!BASE || !TOKEN)) {
   console.error(
-    'Set DATAVERSE_URL and DATAVERSE_TOKEN first — see scripts/dataverse/README.md\n' +
+    'Set DATAVERSE_URL and DATAVERSE_TOKEN first — see the README next to this script.\n' +
       'Or pass --dry-run to print the plan without either.',
   );
   process.exit(1);
