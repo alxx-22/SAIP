@@ -3,14 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "SAIP — Services Account Intelligence Portal. Front-end prototype for Microsoft Power Pages.",
+  "description": "SAIP \u2014 Services Account Intelligence Portal. Front-end prototype for Microsoft Power Pages.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:debug": "tsc -b && vite build --sourcemap",
     "build:powerpages": "npm run build && node scripts/sync-powerpages.mjs",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "dataverse:plan": "node scripts/dataverse/create-tables.mjs --dry-run",
+    "dataverse:create": "node scripts/dataverse/create-tables.mjs",
+    "dataverse:export": "node scripts/dataverse/export-mock.mjs",
+    "dataverse:seed": "node scripts/dataverse/export-mock.mjs && node scripts/dataverse/seed.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.15.0",
