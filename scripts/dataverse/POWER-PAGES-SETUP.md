@@ -60,11 +60,19 @@ That makes Dataverse return the real reason a call failed instead of a generic
 message. Turn it off before anyone outside the team uses the site — it exposes
 internal detail in the browser.
 
-### `fields` set to `*`
+### `fields` must be an explicit column list
 
-`*` means every column. Narrowing it is a real hardening step later, but doing it
-now guarantees a column gets missed and produces a blank tile with no error at
-all. Get it working first, then tighten.
+**Not `*`.** The wildcard is deprecated, and Microsoft's documentation is blunt:
+"Power Pages Web API requests for tables configured with `*` fail until you
+configure explicit column names."
+
+The failure does not mention columns. It comes back as
+`EntityPermissionReadIsMissing` — "You don't have permission to read the
+saip_account table" — which sends you looking at web roles and table
+permissions that are perfectly fine.
+
+`Create-SiteSettings.ps1` builds the list from the schema, so it stays correct
+as columns are added.
 
 ---
 

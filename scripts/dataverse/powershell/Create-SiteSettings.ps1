@@ -49,14 +49,31 @@ $schema = Get-Content $schemaFile -Raw | ConvertFrom-Json
   Listing 33 names by hand would mean a table added later silently missing its
   pair -- the same failure this script exists to prevent, one level up.
 
-  `fields` is `*` on purpose. Narrowing it to named columns is a real hardening
-  step, but doing it now guarantees a column gets missed and produces a blank
-  tile with no error at all. Get it working, then tighten.
+  `fields` IS AN EXPLICIT COLUMN LIST, NOT `*`.
+
+  The wildcard is deprecated, and Microsoft's own documentation is blunt about
+  what it costs: "Power Pages Web API requests for tables configured with `*`
+  fail until you configure explicit column names." I shipped `*` with a comment
+  arguing it was the pragmatic choice -- get it working, then tighten -- and it
+  meant every table returned an error that reads like a permissions problem. It
+  cost hours of chasing web roles that were never wrong.
+
+  The list is built from the schema, so a column added later is included
+  automatically. It carries the id, the primary name, the audit columns the
+  mappers read, and every column on the table.
 #>
 $settings = @()
 foreach ($table in $schema.tables) {
+  $columns = @(
+    "$($table.logicalName)id"
+    'saip_name'
+    'createdon'
+    'modifiedon'
+  ) + @($table.columns | ForEach-Object { $_.logicalName })
+
   $settings += @{ Name = "Webapi/$($table.logicalName)/enabled"; Value = 'true' }
-  $settings += @{ Name = "Webapi/$($table.logicalName)/fields";  Value = '*' }
+  $settings += @{ Name = "Webapi/$($table.logicalName)/fields"
+                  Value = (($columns | Select-Object -Unique) -join ',') }
 }
 if ($IncludeInnerError) {
   $settings += @{ Name = 'Webapi/error/innererror'; Value = 'true' }
