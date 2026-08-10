@@ -26,6 +26,8 @@ param(
   [string] $DataverseUrl,
   <# Only needed when the environment holds more than one Power Pages site. #>
   [string] $WebsiteName,
+  <# Only needed when two sites share a name. Wins over -WebsiteName. #>
+  [string] $WebsiteId,
   <#
     Returns Dataverse's real error text to the browser instead of a generic
     message. Genuinely useful while setting this up, and exposes internal detail
@@ -78,7 +80,7 @@ $script:Token = Get-DataverseToken
 . (Join-Path $PSScriptRoot '_Portal.ps1')
 
 $prefix  = Get-PortalPrefix
-$website = Get-PortalWebsite -Name $WebsiteName
+$website = Get-PortalWebsite -Name $WebsiteName -Id $WebsiteId
 $set     = Get-PortalEntitySet "${prefix}_sitesetting"
 
 $nameField    = "${prefix}_name"

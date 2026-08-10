@@ -48,6 +48,16 @@ powershell -ExecutionPolicy Bypass -File .\Create-SiteSettings.ps1 -IncludeInner
 Writes 33 site settings — two per table, plus one that makes errors readable.
 Expect `Done. 33 created`.
 
+**If it stops and lists your websites**, this environment has more than one and
+it will not guess. Re-run adding the name it printed:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Create-SiteSettings.ps1 -IncludeInnerError -WebsiteName "SAIP"
+```
+
+If two sites share a name it prints their ids instead — use `-WebsiteId "<id>"`.
+Whichever you use here, use the same one in step 3.
+
 *This replaces filling in 33 forms in the Portal Management app.*
 
 `-IncludeInnerError` makes Dataverse return the real reason a call failed instead
@@ -67,6 +77,8 @@ Writes 22 table permissions and attaches them to the web roles. Expect
 
 *This replaces 22 permission forms in the design studio, each with an "Add roles"
 step at the bottom that is easy to miss.*
+
+**Add the same `-WebsiteName` (or `-WebsiteId`) here if step 2 needed one.**
 
 **If it stops and lists your web roles**, the names on your site differ from the
 defaults. Re-run with the ones it printed:

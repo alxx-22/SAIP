@@ -98,7 +98,11 @@ function Get-PortalEntitySet {
   site.
 #>
 function Get-PortalWebsite {
-  param([string] $Name)
+  param(
+    [string] $Name,
+    <# The escape hatch for two sites sharing a name. Wins over -Name. #>
+    [string] $Id
+  )
 
   $prefix = Get-PortalPrefix
   $set = Get-PortalEntitySet "${prefix}_website"
@@ -110,23 +114,62 @@ function Get-PortalWebsite {
 
   if ($websites.Count -eq 0) { throw 'No Power Pages website found in this environment.' }
 
+  if ($Id) {
+    $byId = @($websites | Where-Object { $_.$idField -eq $Id })
+    if ($byId.Count -eq 0) {
+      Write-Host ''
+      Write-Host "No website with id '$Id' in this environment." -ForegroundColor Yellow
+      exit 1
+    }
+    return @{ Id = $Id; Name = $byId[0].$nameField; Set = $set }
+  }
+
+  <#
+    The list IS the error message, so print it and exit.
+
+    A `throw` here buries five useful lines under a PowerShell stack trace and
+    a CategoryInfo block, and the thing you actually need -- the names to choose
+    from -- ends up scrolled off the top.
+  #>
+  function Show-Websites {
+    foreach ($site in $websites) { Write-Host "  $($site.$nameField)" -ForegroundColor White }
+  }
+
   if ($Name) {
-    $match = $websites | Where-Object { $_.$nameField -eq $Name }
-    if (-not $match) {
+    $match = @($websites | Where-Object { $_.$nameField -eq $Name })
+
+    if ($match.Count -eq 0) {
       Write-Host ''
       Write-Host "No website called '$Name'. This environment has:" -ForegroundColor Yellow
-      foreach ($site in $websites) { Write-Host "  $($site.$nameField)" }
-      throw "Website '$Name' not found."
+      Show-Websites
+      exit 1
     }
-    return @{ Id = @($match)[0].$idField; Name = $Name; Set = $set }
+
+    <#
+      Two sites can genuinely share a name -- a live site and a copy of it is
+      the usual pair. Taking the first would configure one of them at random and
+      report success, and the symptom would be a site that still 404s after a
+      run that said it worked.
+    #>
+    if ($match.Count -gt 1) {
+      Write-Host ''
+      Write-Host "$($match.Count) websites are called '$Name', so I cannot tell which you mean." -ForegroundColor Yellow
+      Write-Host 'Rename one in the maker portal, or pass the id instead:' -ForegroundColor Yellow
+      foreach ($site in $match) { Write-Host "  -WebsiteId $($site.$idField)" -ForegroundColor White }
+      exit 1
+    }
+
+    return @{ Id = $match[0].$idField; Name = $Name; Set = $set }
   }
 
   if ($websites.Count -gt 1) {
     Write-Host ''
-    Write-Host 'This environment has more than one website:' -ForegroundColor Yellow
-    foreach ($site in $websites) { Write-Host "  $($site.$nameField)" }
+    Write-Host 'This environment has more than one website. Pick the one to configure:' -ForegroundColor Yellow
+    Show-Websites
     Write-Host ''
-    throw 'Re-run with -WebsiteName "<one of the above>".'
+    Write-Host 'Re-run adding, for example:' -ForegroundColor Yellow
+    Write-Host "    -WebsiteName ""$($websites[0].$nameField)""" -ForegroundColor White
+    exit 1
   }
 
   return @{ Id = $websites[0].$idField; Name = $websites[0].$nameField; Set = $set }

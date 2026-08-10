@@ -29,6 +29,8 @@ param(
   [switch] $DryRun,
   [string] $DataverseUrl,
   [string] $WebsiteName,
+  <# Only needed when two sites share a name. Wins over -WebsiteName. #>
+  [string] $WebsiteId,
 
   <# The role every signed-in user holds. Power Pages creates this one. #>
   [string] $WebRole = 'Authenticated Users',
@@ -116,7 +118,7 @@ $script:Token = Get-DataverseToken
 . (Join-Path $PSScriptRoot '_Portal.ps1')
 
 $prefix  = Get-PortalPrefix
-$website = Get-PortalWebsite -Name $WebsiteName
+$website = Get-PortalWebsite -Name $WebsiteName -Id $WebsiteId
 $set     = Get-PortalEntitySet "${prefix}_entitypermission"
 $roleSet = Get-PortalEntitySet "${prefix}_webrole"
 
