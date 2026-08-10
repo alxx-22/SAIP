@@ -95,8 +95,20 @@ visitor because a parameter was forgotten.
 
 ## Step 4 — Clear the cache
 
-Power Pages caches both of the things you just wrote. In the design studio
-(make.powerpages.microsoft.com), top right → **Sync configuration**.
+Power Pages caches both of the things you just wrote, and the scripts wrote them
+**straight to Dataverse** rather than through the studio — so the portal does not
+know anything changed.
+
+Signed in as an administrator, open:
+
+```
+https://<your-site>/_services/about
+```
+
+and click **Clear cache**.
+
+The studio's **Sync configuration** button is not the same thing: it pushes
+studio edits *out* to Dataverse. These changes came from the other direction.
 
 Skip this and the next step fails for a reason that has already been fixed.
 
@@ -115,9 +127,25 @@ https://<your-site>/_api/saip_accounts
 | Response | Cause |
 | --- | --- |
 | JSON | Working — go to step 6 |
-| 403 | Table permission. Re-run step 3 with the right `-WebRole` |
+| `EntityPermissionReadIsMissing` | Permission not reaching your web role — see below |
 | 404 | Site setting, or the cache. Re-run step 2, then step 4 |
 | 401 | Portal session expired. Sign in again |
+
+**On a permission error, do not guess.** Read the permissions back:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Test-TablePermissions.ps1 -WebsiteName "SAIP - SAIP"
+```
+
+It reads only, and prints all four things that have to be true — the row exists,
+it names the right table, its scope is Global, and **it is attached to a web
+role**. That last one is a separate write from creating the permission, and it is
+the one that silently does nothing: the permission looks perfect in the maker
+portal and grants nothing at all.
+
+It also lists the site's web roles and marks which one every signed-in visitor
+holds. A permission attached to a role nobody holds passes every other check and
+still refuses every request.
 
 This is **not** the URL that gave you a 401 before. That one was
 `orgb9e83276.crm.dynamics.com`, which needs a bearer token a browser cannot
@@ -199,6 +227,7 @@ Check the diff before you upload. I have not run this command.
 | `powershell/Seed-Data.ps1` | Step 1 — fills the tables |
 | `powershell/Create-SiteSettings.ps1` | Step 2 — 33 site settings |
 | `powershell/Create-TablePermissions.ps1` | Step 3 — 22 table permissions |
+| `powershell/Test-TablePermissions.ps1` | Reads the permissions back. Run this on a permission error |
 | `powershell/Create-Tables.ps1` | Already run. Here for a rebuild elsewhere |
 | `powershell/Get-EntitySets.ps1` | Already run. Re-run only if tables are recreated |
 | `powershell/_Common.ps1`, `_Portal.ps1` | Shared sign-in and discovery |

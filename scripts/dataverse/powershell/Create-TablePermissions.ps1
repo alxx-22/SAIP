@@ -271,7 +271,6 @@ Write-Host ''
 
 $created = 0
 $skipped = 0
-$linked  = 0
 
 function New-Permission {
   param(
@@ -317,16 +316,13 @@ function New-Permission {
     Post-Dv "$set($permissionId)/$roleNavigation/`$ref" @{
       '@odata.id' = "$script:ApiRoot$roleSet($RoleId)"
     } | Out-Null
-    $script:linked++
   }
   catch {
     # Already attached. Dataverse rejects a duplicate association, which here
-    # means the desired state is already true -- so it counts as confirmed
-    # rather than as nothing having happened.
+    # means the desired state is already true.
     if ($_.Exception.Message -notmatch 'duplicate|already exists|Cannot insert duplicate') {
       throw
     }
-    $script:linked++
   }
 }
 
@@ -339,8 +335,38 @@ foreach ($entry in $PERMISSIONS) {
   }
 }
 
+<#
+  Read the links back before claiming them.
+
+  The POST that attaches a role answers 204 whether or not the association
+  stuck, so counting POSTs was reporting "22 role link(s) confirmed" for a run
+  in which none had been made. A permission attached to no role looks perfect in
+  the maker portal and grants nothing -- it is the exact shape of
+  "You don't have permission to read the saip_account table" -- so this is the
+  one thing worth spending a request to actually check.
+#>
 Write-Host ''
-Write-Host "Done. $created created, $skipped already existed, $linked role link(s) confirmed." -ForegroundColor Cyan
+Write-Host 'Verifying the role links...' -ForegroundColor Cyan
+
+$check = Get-Dv ("$set`?`$filter=_${prefix}_websiteid_value eq $($website.Id)" +
+                 "&`$select=$idField,$nameField,$entityField" +
+                 "&`$expand=$roleNavigation(`$select=${prefix}_webroleid)")
+
+$mine = @($check.value | Where-Object { [string]$_.$entityField -like 'saip_*' })
+$linked = @($mine | Where-Object { @($_.$roleNavigation).Count -gt 0 }).Count
+$unlinked = @($mine | Where-Object { @($_.$roleNavigation).Count -eq 0 })
+
+Write-Host ''
+Write-Host "Done. $created created, $skipped already existed, $linked of $($mine.Count) attached to a role." -ForegroundColor Cyan
+
+if ($unlinked.Count -gt 0) {
+  Write-Host ''
+  Write-Host "$($unlinked.Count) permission(s) are attached to NO web role and therefore grant" -ForegroundColor Yellow
+  Write-Host 'nothing. This is what produces "You do not have permission to read...".' -ForegroundColor Yellow
+  foreach ($permission in $unlinked) { Write-Host "  $($permission.$nameField)" -ForegroundColor White }
+  Write-Host ''
+  Write-Host 'Run the script again -- it re-attempts the link for rows that already exist.' -ForegroundColor Yellow
+}
 
 if (-not $AdminWebRole) {
   Write-Host ''
