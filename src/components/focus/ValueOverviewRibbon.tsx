@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
 import { Box, Text, Tip } from 'grommet';
 import { motion } from 'framer-motion';
-import { SLA_TIER_COLORS, useAccountService, type ValueOverview } from '@/services';
+import {
+  IS_USING_PLACEHOLDER_DATA,
+  SLA_TIER_COLORS,
+  useAccountService,
+  type ValueOverview,
+} from '@/services';
 import { formatCurrency, formatCurrencyCompact, formatDate, formatRelative } from '@/services/derive';
 import { useAsync } from '@/hooks/useAsync';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -305,9 +310,13 @@ function TileShell({
         content={
           <Box pad="small" width={{ max: '280px' }} gap="xxsmall">
             <Text size="small">{tip}</Text>
-            <Text size="xsmall" color="text-weak">
-              Sample data — not a live figure
-            </Text>
+            {/* The one sample-data marker that is plain text rather than a
+                <SampleDataBadge>, so it needs the flag explicitly. */}
+            {IS_USING_PLACEHOLDER_DATA && (
+              <Text size="xsmall" color="text-weak">
+                Sample data — not a live figure
+              </Text>
+            )}
           </Box>
         }
       >

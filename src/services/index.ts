@@ -14,12 +14,32 @@
 import { createContext, useContext } from 'react';
 import type { AccountService } from './types';
 import { mockAccountService } from './mock/mockAccountService';
+import { dataverseAccountService } from './dataverse/dataverseAccountService';
 
 // ─── SWAP POINT ──────────────────────────────────────────────────────────────
-// PLACEHOLDER — currently bound to the mock implementation.
-// Replace with `dataverseAccountService` when the Fabric-fed Dataverse tables
-// are available. See README → "Going live".
-export const accountService: AccountService = mockAccountService;
+/**
+ * Which implementation the app runs on, chosen at build time.
+ *
+ * Set `VITE_DATA_SOURCE=dataverse` before `npm run build` to produce a bundle
+ * that reads the SAIPDemo Dataverse tables through the Power Pages Web API.
+ * Anything else — including not setting it — keeps the mock.
+ *
+ * DEFAULTS TO MOCK, AND SHOULD. The Dataverse path only works inside a Power
+ * Pages site: it calls the same-origin `/_api/` proxy, which does not exist on
+ * a dev server or in a plain static host. Auto-detecting the host was the
+ * alternative and it is worse — a build that silently changes data source
+ * depending on where it is opened is impossible to reason about when a screen
+ * comes back empty.
+ *
+ * Both implementations are imported either way. The bundler drops the unused
+ * one only when the value is statically known, which it is; keeping the import
+ * unconditional means a type error in the Dataverse service fails the build
+ * rather than waiting until someone flips the flag.
+ */
+const DATA_SOURCE = import.meta.env.VITE_DATA_SOURCE ?? 'mock';
+
+export const accountService: AccountService =
+  DATA_SOURCE === 'dataverse' ? dataverseAccountService : mockAccountService;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

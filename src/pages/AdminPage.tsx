@@ -9,6 +9,7 @@ import { UsersPanel } from '@/components/admin/UsersPanel';
 import { RolesPanel } from '@/components/admin/RolesPanel';
 import { QuestionsPanel } from '@/components/admin/QuestionsPanel';
 import { OptionSetsPanel } from '@/components/admin/OptionSetsPanel';
+import { IS_USING_PLACEHOLDER_DATA } from '@/services';
 
 /**
  * Admin portal.
@@ -70,13 +71,36 @@ export function AdminPage() {
         border={{ color: 'border-info' }}
         role="note"
       >
+        {/*
+          Two separate caveats, and only one of them depends on the data source.
+
+          Where an edit GOES changes with the service — session-only against the
+          mock, a real row against Dataverse. What READS it does not: the ribbons
+          and modals still take their questions and dropdowns from constants
+          either way. Saying both under one "not yet connected" heading made the
+          second claim disappear the moment the first stopped being true, which
+          is how an admin ends up believing a renamed question took effect.
+        */}
         <Text size="small" color="text-strong">
-          <Text size="small" weight={600} color="text-strong">
-            Not yet connected.{' '}
-          </Text>
-          Edits here are saved for this session and show the shape of the tables
-          behind them, but the app's own screens still read their questions and
-          dropdowns from code. Wiring them up comes with the SQL build.
+          {IS_USING_PLACEHOLDER_DATA ? (
+            <>
+              <Text size="small" weight={600} color="text-strong">
+                Not yet connected.{' '}
+              </Text>
+              Edits here are held for this session only and show the shape of the
+              tables behind them.{' '}
+            </>
+          ) : (
+            <>
+              <Text size="small" weight={600} color="text-strong">
+                Saved to Dataverse.{' '}
+              </Text>
+              Edits here are written to the SAIP tables and survive a reload.{' '}
+            </>
+          )}
+          The app&apos;s own screens still read their questions and dropdowns from
+          code, so changes here do not yet change what a rep sees. Wiring the
+          consumers up comes with the SQL build.
         </Text>
       </Box>
 

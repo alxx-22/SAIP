@@ -4,6 +4,7 @@ import { Add, Currency, Document as DocIcon, Group, Target } from 'grommet-icons
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  IS_USING_PLACEHOLDER_DATA,
   useAccountService,
   type Account,
   type Incentive,
@@ -416,8 +417,9 @@ function IncentiveDetail({ incentiveId }: { incentiveId: string }) {
           Incentive not found
         </Text>
         <Text size="small" color="text-weak">
-          That incentive doesn’t exist, or it was created in a previous session —
-          incentives created in this prototype are held in memory only.
+          {IS_USING_PLACEHOLDER_DATA
+            ? 'That incentive doesn’t exist, or it was created in a previous session — on sample data, incentives are held in memory only.'
+            : 'That incentive doesn’t exist, or it has since been deleted.'}
         </Text>
         <BackLink onClick={() => navigate('/business-development')} />
       </Box>

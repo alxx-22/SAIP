@@ -1,5 +1,6 @@
 import { Box, Text } from 'grommet';
 import type { BoxProps } from 'grommet';
+import { IS_USING_PLACEHOLDER_DATA } from '../../services';
 
 /**
  * "Sample data" marker.
@@ -9,14 +10,19 @@ import type { BoxProps } from 'grommet';
  * prototype for a live account. Rendered on every card, ribbon and table that
  * displays service-layer data.
  *
- * When the Dataverse implementation is registered,
- * `IS_USING_PLACEHOLDER_DATA` flips to false and every one of these disappears
- * at once — there is no per-component cleanup to remember.
+ * THE GATE IS HERE, NOT AT THE CALL SITES. Eighteen components render one of
+ * these, and asking each of them to check the flag is asking for the one that
+ * forgets — a live figure wearing a "sample data" badge, or worse, invented
+ * data without one. Returning null from the component itself means the promise
+ * this file has always made ("they all disappear at once") is actually kept by
+ * a single line rather than by discipline.
  */
 export function SampleDataBadge({
   label = 'Sample data',
   ...rest
 }: { label?: string } & BoxProps) {
+  if (!IS_USING_PLACEHOLDER_DATA) return null;
+
   return (
     <Box
       as="span"
