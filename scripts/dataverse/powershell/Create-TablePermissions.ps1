@@ -348,13 +348,13 @@ foreach ($entry in $PERMISSIONS) {
 Write-Host ''
 Write-Host 'Verifying the role links...' -ForegroundColor Cyan
 
-$check = Get-Dv ("$set`?`$filter=_${prefix}_websiteid_value eq $($website.Id)" +
-                 "&`$select=$idField,$nameField,$entityField" +
-                 "&`$expand=$roleNavigation(`$select=${prefix}_webroleid)")
+$roleMap = Get-PermissionRoleMap -Prefix $prefix -WebsiteId $website.Id
 
-$mine = @($check.value | Where-Object { [string]$_.$entityField -like 'saip_*' })
-$linked = @($mine | Where-Object { @($_.$roleNavigation).Count -gt 0 }).Count
-$unlinked = @($mine | Where-Object { @($_.$roleNavigation).Count -eq 0 })
+$mine = @((Get-Dv ("$set`?`$filter=_${prefix}_websiteid_value eq $($website.Id)" +
+                   "&`$select=$idField,$nameField,$entityField")).value |
+          Where-Object { [string]$_.$entityField -like 'saip_*' })
+$linked = @($mine | Where-Object { $roleMap.ContainsKey($_.$idField) }).Count
+$unlinked = @($mine | Where-Object { -not $roleMap.ContainsKey($_.$idField) })
 
 Write-Host ''
 Write-Host "Done. $created created, $skipped already existed, $linked of $($mine.Count) attached to a role." -ForegroundColor Cyan

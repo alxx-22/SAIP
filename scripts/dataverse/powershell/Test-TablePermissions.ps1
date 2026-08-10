@@ -70,10 +70,11 @@ $globalScope   = Get-OptionValue -Entity $permissionEntity -Attribute $scopeFiel
 Write-Host "Website:   $($website.Name)"
 Write-Host ''
 
+$roleMap = Get-PermissionRoleMap -Prefix $prefix -WebsiteId $website.Id
+
 $response = Get-Dv ("$set`?`$filter=_${prefix}_websiteid_value eq $($website.Id)" +
                     "&`$select=$idField,$nameField,$entityField,$scopeField," +
-                    "${prefix}_read,${prefix}_write,${prefix}_create,${prefix}_delete" +
-                    "&`$expand=$roleNavigation(`$select=$roleNameField)")
+                    "${prefix}_read,${prefix}_write,${prefix}_create,${prefix}_delete")
 
 $permissions = @($response.value)
 
@@ -97,7 +98,7 @@ foreach ($permission in ($saip | Sort-Object { $_.$entityField })) {
     if ($permission."${prefix}_$privilege") { $privileges += $privilege }
   }
 
-  $roles = @($permission.$roleNavigation | ForEach-Object { $_.$roleNameField })
+  $roles = @($roleMap[$permission.$idField])
   if ($roles.Count -eq 0) { $unlinked++ }
 
   $scopeOk = $permission.$scopeField -eq $globalScope

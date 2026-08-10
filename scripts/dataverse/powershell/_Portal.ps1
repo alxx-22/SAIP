@@ -253,3 +253,60 @@ function Test-Column {
   $found = Get-Dv "EntityDefinitions(LogicalName='$Entity')/Attributes(LogicalName='$Attribute')?`$select=LogicalName" -AllowNotFound
   return [bool]$found
 }
+
+<#
+  Which permissions each web role holds, read the only way that is reliable.
+
+  DATAVERSE DOES NOT DEPENDABLY EXPAND A COLLECTION-VALUED NAVIGATION PROPERTY
+  WHILE RETURNING A COLLECTION. `mspp_entitypermissions?$filter=...&$expand=<N:N>`
+  answers with the rows and an EMPTY expansion -- no error, no warning -- which
+  reads exactly like "attached to no role". That false negative sent a working
+  configuration back round the loop twice.
+
+  Asking for ONE record and expanding from there returns the truth. Doing it
+  from the role side keeps it to one request per role (three or four) rather
+  than one per permission (twenty-two).
+
+  Returns a hashtable of permission id -> list of role names.
+#>
+function Get-PermissionRoleMap {
+  param(
+    [Parameter(Mandatory)][string] $Prefix,
+    [Parameter(Mandatory)][string] $WebsiteId
+  )
+
+  $roleSet  = Get-PortalEntitySet "${Prefix}_webrole"
+  $roleName = Get-PrimaryName "${Prefix}_webrole"
+  $permEntity = "${Prefix}_entitypermission"
+  $permIdField = "${Prefix}_entitypermissionid"
+
+  $relationships = Get-Dv ("EntityDefinitions(LogicalName='$permEntity')?" +
+                           "`$select=LogicalName&`$expand=ManyToManyRelationships")
+  $link = $relationships.ManyToManyRelationships |
+          Where-Object { $_.Entity1LogicalName -eq "${Prefix}_webrole" -or $_.Entity2LogicalName -eq "${Prefix}_webrole" } |
+          Select-Object -First 1
+  if (-not $link) { throw "No relationship between $permEntity and ${Prefix}_webrole." }
+
+  $navFromRole = if ($link.Entity1LogicalName -eq $permEntity) {
+    $link.Entity2NavigationPropertyName
+  } else {
+    $link.Entity1NavigationPropertyName
+  }
+
+  $map = @{}
+  $roles = Get-Dv ("$roleSet`?`$filter=_${Prefix}_websiteid_value eq $WebsiteId" +
+                   "&`$select=${Prefix}_webroleid,$roleName")
+
+  foreach ($role in $roles.value) {
+    $one = Get-Dv ("$roleSet($($role."${Prefix}_webroleid"))?`$select=$roleName" +
+                   "&`$expand=$navFromRole(`$select=$permIdField)")
+    foreach ($permission in @($one.$navFromRole)) {
+      $id = $permission.$permIdField
+      if (-not $id) { continue }
+      if (-not $map.ContainsKey($id)) { $map[$id] = @() }
+      $map[$id] += $role.$roleName
+    }
+  }
+
+  return $map
+}
