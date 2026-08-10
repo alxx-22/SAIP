@@ -31,6 +31,13 @@ param(
   [string] $WebsiteName,
   <# Only needed when two sites share a name. Wins over -WebsiteName. #>
   [string] $WebsiteId,
+  <#
+    Prints every column on the entity permission table and stops.
+
+    For when a write still does not line up: a 400 names the ONE column that is
+    wrong, this names the ones that exist.
+  #>
+  [switch] $ShowColumns,
 
   <# The role every signed-in user holds. Power Pages creates this one. #>
   [string] $WebRole = 'Authenticated Users',
@@ -117,16 +124,54 @@ if ($DryRun) {
 $script:Token = Get-DataverseToken
 . (Join-Path $PSScriptRoot '_Portal.ps1')
 
-$prefix  = Get-PortalPrefix
+$prefix           = Get-PortalPrefix
+$permissionEntity = "${prefix}_entitypermission"
+
+# Before the website is resolved: a diagnostic should not first make you answer
+# a question about which site you meant.
+if ($ShowColumns) {
+  Write-Host ''
+  Write-Host "Columns on ${permissionEntity}:" -ForegroundColor Cyan
+  foreach ($column in Get-Columns $permissionEntity) {
+    Write-Host ("  {0,-46} {1}" -f $column.LogicalName, $column.AttributeType)
+  }
+  exit 0
+}
+
 $website = Get-PortalWebsite -Name $WebsiteName -Id $WebsiteId
 $set     = Get-PortalEntitySet "${prefix}_entitypermission"
 $roleSet = Get-PortalEntitySet "${prefix}_webrole"
 
-$permissionEntity = "${prefix}_entitypermission"
-$idField          = "${prefix}_entitypermissionid"
-$nameField        = "${prefix}_name"
-$scopeField       = "${prefix}_scope"
-$websiteBind      = "${prefix}_websiteid@odata.bind"
+$idField     = "${prefix}_entitypermissionid"
+$websiteBind = "${prefix}_websiteid@odata.bind"
+
+<#
+  The primary name column, asked for rather than assumed.
+
+  `<prefix>_name` is right for the website, the web role and the site setting,
+  and WRONG here -- filtering on mspp_name returns "Could not find a property
+  named 'mspp_name' on type mspp_entitypermission". Three tables out of four
+  following a pattern is what makes it look like a rule.
+#>
+$nameField = Get-PrimaryName $permissionEntity
+
+<#
+  The scope column, likewise. `<prefix>_scope` is the expected name; if this
+  environment calls it something else, find the choice column whose name ends
+  that way rather than failing on the assumption.
+#>
+$scopeField = "${prefix}_scope"
+if (-not (Test-Column -Entity $permissionEntity -Attribute $scopeField)) {
+  $candidate = Get-Columns $permissionEntity |
+               Where-Object { $_.LogicalName -like '*scope*' -and $_.AttributeType -eq 'Picklist' } |
+               Select-Object -First 1
+  if (-not $candidate) {
+    Write-Host ''
+    Write-Host "No scope column on $permissionEntity. Run with -ShowColumns to see what it has." -ForegroundColor Yellow
+    exit 1
+  }
+  $scopeField = $candidate.LogicalName
+}
 
 <#
   The column naming the table, which moved between the two data models.
@@ -149,6 +194,26 @@ $entityField = if (Test-Column -Entity $permissionEntity -Attribute "${prefix}_e
   data models, which is exactly why it is looked up.
 #>
 $globalScope = Get-OptionValue -Entity $permissionEntity -Attribute $scopeField -Label 'Global'
+
+<#
+  The four privilege columns, each confirmed to exist before anything is written.
+
+  A privilege column that is named differently here would be dropped silently
+  from the POST body, and the permission would be created granting nothing --
+  a run that reports success and produces 403s. Better to stop and say which
+  one is missing.
+#>
+$privilegeFields = @{}
+foreach ($privilege in @('read', 'write', 'create', 'delete')) {
+  $column = "${prefix}_$privilege"
+  if (-not (Test-Column -Entity $permissionEntity -Attribute $column)) {
+    Write-Host ''
+    Write-Host "$permissionEntity has no '$column' column, so privileges cannot be set." -ForegroundColor Yellow
+    Write-Host 'Run with -ShowColumns and send me the list.' -ForegroundColor Yellow
+    exit 1
+  }
+  $privilegeFields[$privilege] = $column
+}
 
 <#
   The navigation property linking a permission to a web role.
@@ -177,14 +242,15 @@ function Resolve-WebRole {
   param([Parameter(Mandatory)][string] $Name)
 
   $safeName = $Name.Replace("'", "''")
-  $response = Get-Dv ("$roleSet`?`$filter=${prefix}_name eq '$safeName' and " +
+  $roleNameField = Get-PrimaryName "${prefix}_webrole"
+  $response = Get-Dv ("$roleSet`?`$filter=$roleNameField eq '$safeName' and " +
                       "_${prefix}_websiteid_value eq $($website.Id)&`$select=${prefix}_webroleid")
 
   if (@($response.value).Count -eq 0) {
-    $all = Get-Dv "$roleSet`?`$filter=_${prefix}_websiteid_value eq $($website.Id)&`$select=${prefix}_name"
+    $all = Get-Dv "$roleSet`?`$filter=_${prefix}_websiteid_value eq $($website.Id)&`$select=$roleNameField"
     Write-Host ''
     Write-Host "No web role called '$Name' on this site. It has:" -ForegroundColor Yellow
-    foreach ($role in $all.value) { Write-Host "  $($role.$nameField)" }
+    foreach ($role in $all.value) { Write-Host "  $($role.$roleNameField)" -ForegroundColor White }
     Write-Host ''
     Write-Host 'Re-run with -WebRole "<one of the names above>".' -ForegroundColor Yellow
     # exit, not throw: the list above IS the error message, and a PowerShell
@@ -230,10 +296,10 @@ function New-Permission {
       $entityField  = $Table
       $scopeField   = $globalScope
       $websiteBind  = "/$($website.Set)($($website.Id))"
-      "${prefix}_read"   = [bool]$Privileges['Read']
-      "${prefix}_write"  = [bool]$Privileges['Write']
-      "${prefix}_create" = [bool]$Privileges['Create']
-      "${prefix}_delete" = [bool]$Privileges['Delete']
+      $privilegeFields['read']   = [bool]$Privileges['Read']
+      $privilegeFields['write']  = [bool]$Privileges['Write']
+      $privilegeFields['create'] = [bool]$Privileges['Create']
+      $privilegeFields['delete'] = [bool]$Privileges['Delete']
     }
     $permissionId = (Post-Dv $set $body @{ Prefer = 'return=representation' }).$idField
     Write-Host ("  + {0,-46} {1}" -f $Name, (Format-Privileges $Privileges)) -ForegroundColor Green

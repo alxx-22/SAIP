@@ -87,6 +87,49 @@ function Get-PortalEntitySet {
 }
 
 <#
+  The primary name column, read from the service.
+
+  NOT `<prefix>_name`. That is true for the website, the web role and the site
+  setting, and FALSE for the entity permission -- which answers a filter on
+  mspp_name with "Could not find a property named 'mspp_name'". The pattern
+  holding for three tables out of four is exactly what makes it look like a
+  rule.
+
+  This is the same lesson as entity set names, learned again one table later:
+  if the service will tell you, ask it.
+#>
+$script:PrimaryNameCache = @{}
+
+function Get-PrimaryName {
+  param([Parameter(Mandatory)][string] $LogicalName)
+
+  if ($script:PrimaryNameCache.ContainsKey($LogicalName)) {
+    return $script:PrimaryNameCache[$LogicalName]
+  }
+
+  $definition = Get-Dv "EntityDefinitions(LogicalName='$LogicalName')?`$select=PrimaryNameAttribute"
+  if (-not $definition.PrimaryNameAttribute) {
+    throw "Could not read the primary name column for $LogicalName."
+  }
+
+  $script:PrimaryNameCache[$LogicalName] = $definition.PrimaryNameAttribute
+  return $definition.PrimaryNameAttribute
+}
+
+<#
+  Every column on a table, for when something still does not line up.
+
+  Printed by -ShowColumns. A 400 naming one missing column tells you that column
+  is wrong; the list tells you what to use instead, in one round trip rather
+  than three.
+#>
+function Get-Columns {
+  param([Parameter(Mandatory)][string] $LogicalName)
+  $response = Get-Dv "EntityDefinitions(LogicalName='$LogicalName')/Attributes?`$select=LogicalName,AttributeType"
+  return @($response.value | Sort-Object LogicalName)
+}
+
+<#
   The website these settings belong to.
 
   A site setting with no website attaches to nothing and silently does nothing,
@@ -107,7 +150,7 @@ function Get-PortalWebsite {
   $prefix = Get-PortalPrefix
   $set = Get-PortalEntitySet "${prefix}_website"
   $idField = "${prefix}_websiteid"
-  $nameField = "${prefix}_name"
+  $nameField = Get-PrimaryName "${prefix}_website"
 
   $response = Get-Dv "$set`?`$select=$idField,$nameField"
   $websites = @($response.value)
