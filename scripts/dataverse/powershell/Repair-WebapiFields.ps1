@@ -46,7 +46,15 @@ foreach($t in $FIELDS.Keys|Sort-Object){
     Invoke-RestMethod -Method Post -Uri ($Api+"$($P)_sitesettings") -Headers $H -ContentType 'application/json' -Body (@{"$($P)_name"=$setting;"$($P)_value"=$FIELDS[$t];"$($P)_websiteid@odata.bind"="/$($P)_websites($wid)"}|ConvertTo-Json)|Out-Null
     Write-Host ("  + {0,-40} created" -f $setting) -ForegroundColor Green; $done++; continue}
   if($row."$($P)_value" -eq $FIELDS[$t]){Write-Host ("  - {0,-40} already explicit" -f $setting) -ForegroundColor DarkGray; continue}
-  Invoke-RestMethod -Method Patch -Uri ($Api+"$($P)_sitesettings($($row."$($P)_sitesettingid"))") -Headers $H -ContentType 'application/json' -Body (@{"$($P)_value"=$FIELDS[$t]}|ConvertTo-Json)|Out-Null
+  # DELETE + POST, not PATCH. In the enhanced data model mspp_sitesetting is a
+  # virtual projection over powerpagecomponent, and updating through it fails
+  # with "The given key was not present in the dictionary". Create works.
+  try{
+    Invoke-RestMethod -Method Delete -Uri ($Api+"$($P)_sitesettings($($row."$($P)_sitesettingid"))") -Headers $H|Out-Null
+  }catch{
+    $m=$_.Exception.Message; if($_.ErrorDetails -and $_.ErrorDetails.Message){$m=$_.ErrorDetails.Message}
+    Write-Host ("  ! {0,-40} delete failed: {1}" -f $setting,$m) -ForegroundColor Red; continue}
+  Invoke-RestMethod -Method Post -Uri ($Api+"$($P)_sitesettings") -Headers $H -ContentType 'application/json' -Body (@{"$($P)_name"=$setting;"$($P)_value"=$FIELDS[$t];"$($P)_websiteid@odata.bind"="/$($P)_websites($wid)"}|ConvertTo-Json)|Out-Null
   Write-Host ("  ~ {0,-40} '{1}' -> {2} columns" -f $setting,$row."$($P)_value",($FIELDS[$t] -split ',').Count) -ForegroundColor Green; $done++}
 $after=@((G "$($P)_sitesettings?`$filter=_$($P)_websiteid_value eq $wid&`$select=$($P)_name,$($P)_value").value)|Where-Object{$_."$($P)_name" -like 'Webapi/*/fields'}
 $stars=@($after|Where-Object{$_."$($P)_value" -eq '*'}).Count
