@@ -42,7 +42,7 @@ import {
   MOCK_CURRENT_USER,
   MOCK_DEFAULT_COVERAGE_MODEL,
   MOCK_DEFAULT_ACCOUNT_SCORES,
-  MOCK_DEFAULT_CONTRACTS,
+  defaultContractsFor,
   MOCK_DEFAULT_VALUE_OVERVIEW,
   MOCK_MEETINGS,
   MOCK_MONITORING,
@@ -161,7 +161,7 @@ export const mockAccountService: AccountService = {
 
   async getValueOverview(accountId: string): Promise<ValueOverview> {
     const seed = MOCK_VALUE_OVERVIEW[accountId] ?? MOCK_DEFAULT_VALUE_OVERVIEW;
-    const contracts = MOCK_CONTRACTS[accountId] ?? MOCK_DEFAULT_CONTRACTS;
+    const contracts = MOCK_CONTRACTS[accountId] ?? defaultContractsFor(accountId);
     const coverage = MOCK_COVERAGE_MODEL[accountId] ?? MOCK_DEFAULT_COVERAGE_MODEL;
 
     // Derived from the contracts rather than stored, so the Value Overview and
@@ -176,7 +176,7 @@ export const mockAccountService: AccountService = {
   },
 
   async getServiceContracts(accountId: string): Promise<ServiceContract[]> {
-    const contracts = MOCK_CONTRACTS[accountId] ?? MOCK_DEFAULT_CONTRACTS;
+    const contracts = MOCK_CONTRACTS[accountId] ?? defaultContractsFor(accountId);
     return delay([...contracts], LATENCY.normal);
   },
 

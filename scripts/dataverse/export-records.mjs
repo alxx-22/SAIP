@@ -34,6 +34,36 @@ const tables = mappings.map((mapping) => ({
   })),
 }));
 
+/*
+  Refuse to write a file with a repeated business key.
+
+  The seeder matches on that key and updates in place, so two records sharing
+  one is not a duplicate row in Dataverse -- it is SILENT DATA LOSS. The second
+  record overwrites the first and the run reports both as successes, which is
+  exactly how five accounts came to share two contract numbers and four of them
+  ended up with no contracts at all.
+
+  Nothing in the output distinguished that from a clean run. This does.
+*/
+const collisions = tables.flatMap(({ logicalName, records }) => {
+  const seen = new Map();
+  for (const record of records) {
+    const value = record[KEY_FIELD];
+    seen.set(value, (seen.get(value) ?? 0) + 1);
+  }
+  return [...seen.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([value, count]) => `  ${logicalName}: ${KEY_FIELD}="${value}" appears ${count} times`);
+});
+
+if (collisions.length > 0) {
+  console.error('Duplicate business keys -- seeding this would silently lose records:');
+  console.error(collisions.join('\n'));
+  console.error('\nMake the keys unique in the fixtures. Composing the key instead would');
+  console.error('hide the fact that two records claim the same real-world identifier.');
+  process.exit(1);
+}
+
 mkdirSync(OUT_DIR, { recursive: true });
 const outFile = join(OUT_DIR, 'records.json');
 writeFileSync(

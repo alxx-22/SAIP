@@ -30,7 +30,7 @@ const ENTRY = `
 import { CAPABILITIES } from '@/services/types';
 import {
   MOCK_ACCOUNTS, MOCK_ACCOUNT_SCORES, MOCK_DEFAULT_ACCOUNT_SCORES,
-  MOCK_CONTRACTS, MOCK_DEFAULT_CONTRACTS, MOCK_MONITORING, MOCK_MEETINGS,
+  MOCK_CONTRACTS, defaultContractsFor, MOCK_MONITORING, MOCK_MEETINGS,
 } from '@/services/mock/mockData';
 import { MOCK_ACCOUNT_OPPORTUNITIES } from '@/services/mock/mockOpportunities';
 import { MOCK_INCENTIVES } from '@/services/mock/mockIncentives';
@@ -50,7 +50,7 @@ for (const account of MOCK_ACCOUNTS) {
   for (const s of (MOCK_ACCOUNT_SCORES[account.accountId] ?? MOCK_DEFAULT_ACCOUNT_SCORES)) {
     scores.push({ accountId: account.accountId, ...s });
   }
-  for (const c of (MOCK_CONTRACTS[account.accountId] ?? MOCK_DEFAULT_CONTRACTS)) {
+  for (const c of (MOCK_CONTRACTS[account.accountId] ?? defaultContractsFor(account.accountId))) {
     contracts.push({ accountId: account.accountId, ...c });
   }
 }

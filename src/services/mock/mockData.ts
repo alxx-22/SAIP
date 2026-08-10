@@ -306,8 +306,26 @@ export const MOCK_CONTRACTS: Record<string, ServiceContract[]> = {
   ],
 };
 
-/** PLACEHOLDER DATA — fallback contract set for un-seeded accounts. */
-export const MOCK_DEFAULT_CONTRACTS: ServiceContract[] = [
+/**
+ * PLACEHOLDER DATA — fallback contract set for un-seeded accounts.
+ *
+ * A TEMPLATE, NOT A LIST. Use `defaultContractsFor(accountId)` below; the
+ * `contractId` values here are placeholders that get replaced per account.
+ *
+ * The distinction cost real data. The mock service returns this array for any
+ * account without its own contracts, which is harmless when one account is on
+ * screen — but the export flattens every account's contracts into ONE table
+ * where the contract number is the business key. Five accounts sharing two
+ * contract numbers meant the seeder matched and updated the same two rows five
+ * times over, so four accounts ended up with no contracts at all and the fifth
+ * owned both.
+ *
+ * A contract number is genuinely unique in the real world. Composing the key
+ * as `<account>:<contract>` would have made the seed work while still showing
+ * the same contract number on five different accounts' screens, which is worse
+ * — so the numbers themselves are made distinct instead.
+ */
+const MOCK_DEFAULT_CONTRACT_TEMPLATE: ServiceContract[] = [
   {
     contractId: '4009003121',
     sla: 'Tech Care Basic',
@@ -325,6 +343,23 @@ export const MOCK_DEFAULT_CONTRACTS: ServiceContract[] = [
     renewalDate: daysFromNow(47),
   },
 ];
+
+/**
+ * The fallback contracts for one account, with contract numbers unique to it.
+ *
+ * Deterministic, so the same account gets the same numbers on every render and
+ * every export — a re-seed has to match the rows it wrote last time rather than
+ * creating a second set beside them.
+ *
+ * Keeps the real shape: ten digits beginning 400.
+ */
+export function defaultContractsFor(accountId: string): ServiceContract[] {
+  const ordinal = (accountId.match(/\d+/)?.[0] ?? '0').padStart(3, '0').slice(-3);
+  return MOCK_DEFAULT_CONTRACT_TEMPLATE.map((contract, index) => ({
+    ...contract,
+    contractId: `4009${ordinal}${String(index).padStart(3, '0')}`,
+  }));
+}
 
 /**
  * PLACEHOLDER DATA — how each account is contracted.
