@@ -64,12 +64,66 @@ $contacts = Get-Dv ("contacts?`$filter=emailaddress1 eq '$safeEmail'" +
 $found = @($contacts.value)
 
 if ($found.Count -eq 0) {
-  Write-Host "No contact with the email $Email." -ForegroundColor Yellow
+  Write-Host "No contact whose email is exactly $Email." -ForegroundColor Yellow
+
+  <#
+    Do not stop at "not found". An exact match on emailaddress1 is a narrower
+    test than it looks:
+
+      - Entra provisions the contact from a claim, and the address it lands on
+        can be the UPN rather than the mail attribute, or nothing at all.
+      - A contact created by hand may carry the address in a different field.
+
+    So show what IS there. A short list you can recognise yourself in beats a
+    confident no.
+  #>
+  $domain = if ($Email -match '@(.+)$') { $Matches[1] } else { $Email }
+  $safeDomain = $domain.Replace("'", "''")
+
+  $sameDomain = @((Get-Dv ("contacts?`$filter=contains(emailaddress1,'$safeDomain')" +
+                           "&`$select=contactid,fullname,emailaddress1" +
+                           "&`$orderby=createdon desc&`$top=25")).value)
+
+  if ($sameDomain.Count -gt 0) {
+    Write-Host ''
+    Write-Host "Contacts at $domain :" -ForegroundColor Cyan
+    foreach ($candidate in $sameDomain) {
+      Write-Host ("  {0,-32} {1}" -f $candidate.fullname, $candidate.emailaddress1)
+    }
+    Write-Host ''
+    Write-Host 'If one of those is you, re-run with that exact address.' -ForegroundColor Yellow
+    exit 1
+  }
+
+  <#
+    Nobody at all is the more interesting answer, so say what it means rather
+    than repeating the lookup failure.
+
+    Browsing a Power Pages site does NOT create a contact -- sites serve
+    anonymous visitors by default, and every page you have seen so far you saw
+    as one. A contact appears only when a sign-in completes, which requires the
+    site to have an identity provider configured.
+  #>
+  $anyContacts = @((Get-Dv "contacts?`$select=contactid&`$top=1").value).Count
+
   Write-Host ''
-  Write-Host 'The portal creates a contact the first time someone signs IN TO THE SITE.' -ForegroundColor Yellow
-  Write-Host 'Being signed in to make.powerpages.microsoft.com is not the same thing.' -ForegroundColor Yellow
+  if ($anyContacts -eq 0) {
+    Write-Host 'There are no contacts in this environment at all.' -ForegroundColor Yellow
+  } else {
+    Write-Host 'There are contacts, but none at your domain.' -ForegroundColor Yellow
+  }
+
   Write-Host ''
-  Write-Host "Open https://<your-site>/ , sign in, then run this again." -ForegroundColor White
+  Write-Host 'Visiting the site is not signing in to it. Power Pages serves anonymous' -ForegroundColor Yellow
+  Write-Host 'visitors by default, and a contact is only created when a sign-in' -ForegroundColor Yellow
+  Write-Host 'COMPLETES -- which is also why /_api refuses you: an anonymous visitor' -ForegroundColor Yellow
+  Write-Host 'holds no web role, so no table permission applies.' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host 'Open your site and look at the top right:' -ForegroundColor White
+  Write-Host '  - a "Sign in" link  -> click it and finish signing in, then re-run this' -ForegroundColor White
+  Write-Host '  - no sign-in at all -> the site has no identity provider yet.' -ForegroundColor White
+  Write-Host '                         Power Pages studio > Set up > Identity providers' -ForegroundColor White
+  Write-Host '                         Turn on Azure Active Directory / Microsoft Entra ID.' -ForegroundColor White
   exit 1
 }
 
