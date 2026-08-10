@@ -280,8 +280,18 @@ function New-Permission {
     [hashtable] $Privileges
   )
 
-  $safeName = $Name.Replace("'", "''")
-  $existing = Get-Dv ("$set`?`$filter=$nameField eq '$safeName' and " +
+  <#
+    Matched on table + website + the delete flag.
+
+    The friendly name is no longer written to a column, so it cannot be the key
+    -- and six tables carry TWO permissions, a read-only one for everyone and a
+    full one for administrators. Table alone would make the second look like a
+    duplicate of the first and silently skip it; delete is what separates them.
+  #>
+  $safeTable = $Table.Replace("'", "''")
+  $wantsDelete = [bool]$Privileges['Delete']
+  $existing = Get-Dv ("$set`?`$filter=$entityField eq '$safeTable' and " +
+                      "$($privilegeFields['delete']) eq $($wantsDelete.ToString().ToLower()) and " +
                       "_${prefix}_websiteid_value eq $($website.Id)&`$select=$idField")
 
   if (@($existing.value).Count -gt 0) {
@@ -290,8 +300,16 @@ function New-Permission {
     $script:skipped++
   }
   else {
+    <#
+      When the primary name column IS the table column, the TABLE wins.
+
+      In the enhanced data model mspp_entityname is both, so writing a friendly
+      name into it produced permissions naming a table called
+      "SAIP saip_account" -- which does not exist, so they granted nothing no
+      matter which web role was attached. PowerShell refuses the duplicate hash
+      key outright now; this is the deliberate version of that.
+    #>
     $body = @{
-      $nameField    = $Name
       $entityField  = $Table
       $scopeField   = $globalScope
       $websiteBind  = "/$($website.Set)($($website.Id))"
@@ -300,6 +318,16 @@ function New-Permission {
       $privilegeFields['create'] = [bool]$Privileges['Create']
       $privilegeFields['delete'] = [bool]$Privileges['Delete']
     }
+    <#
+      The TABLE goes in the name column too, not a friendly label.
+
+      Whichever of the two columns this environment treats as authoritative,
+      both now say saip_account. A friendly name in the wrong one is what
+      produced permissions pointing at a table called "SAIP saip_account", and
+      those grant nothing however they are linked. Power Pages names its own
+      permissions after the table for exactly this reason.
+    #>
+    if ($nameField -ne $entityField) { $body[$nameField] = $Table }
     $permissionId = (Post-Dv $set $body @{ Prefer = 'return=representation' }).$idField
     Write-Host ("  + {0,-46} {1}" -f $Name, (Format-Privileges $Privileges)) -ForegroundColor Green
     $script:created++
