@@ -93,6 +93,35 @@ visitor because a parameter was forgotten.
 
 ---
 
+## Step 3.5 — Make yourself a portal administrator
+
+Nothing so far has granted **you** anything. The scripts link a *permission* to
+a *role*; linking a *person* to a role is a separate thing, and this is it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Set-PortalRole.ps1 -Email you@hpe.com -WebsiteName "SAIP - SAIP"
+```
+
+That reads only. It prints your contact and which roles you hold. Then grant:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Set-PortalRole.ps1 -Email you@hpe.com -Role "Administrators" -WebsiteName "SAIP - SAIP"
+```
+
+**Sign out of the site and back in afterwards** — roles are read at sign-in.
+
+Two things this explains:
+
+- **"Authenticated Users" is automatic.** Every signed-in visitor holds it, so
+  the read permissions apply the moment you are signed in *to the site*. If it
+  says you have no contact, you have never signed in to the site itself —
+  being signed in to make.powerpages.microsoft.com is not the same thing, and
+  no amount of re-running the other scripts will fix it.
+- **"Administrators" is not automatic.** It is why `/_services/about` shows a
+  version and no Clear cache button, and why the admin portal will not save.
+
+---
+
 ## Step 4 — Clear the cache
 
 Power Pages caches both of the things you just wrote, and the scripts wrote them
@@ -228,6 +257,7 @@ Check the diff before you upload. I have not run this command.
 | `powershell/Create-SiteSettings.ps1` | Step 2 — 33 site settings |
 | `powershell/Create-TablePermissions.ps1` | Step 3 — 22 table permissions |
 | `powershell/Test-TablePermissions.ps1` | Reads the permissions back. Run this on a permission error |
+| `powershell/Set-PortalRole.ps1` | Step 3.5 — shows what you hold, and grants a role |
 | `powershell/Create-Tables.ps1` | Already run. Here for a rebuild elsewhere |
 | `powershell/Get-EntitySets.ps1` | Already run. Re-run only if tables are recreated |
 | `powershell/_Common.ps1`, `_Portal.ps1` | Shared sign-in and discovery |
