@@ -71,7 +71,19 @@ function Write-EntitySets {
   }
 
   $outFile = Join-Path $script:DataDir 'entity-sets.json'
-  ($out | ConvertTo-Json -Depth 5) | Set-Content -Path $outFile -Encoding UTF8
+  <#
+    Written WITHOUT a byte order mark.
+
+    `Set-Content -Encoding UTF8` writes one on Windows PowerShell 5.1. PowerShell
+    reads it back happily, so nothing here noticed -- but a BOM makes the file
+    invalid JSON per RFC 8259, and this is a handoff file meant to be read by
+    other tools. Node's JSON.parse rejects it outright.
+  #>
+  [System.IO.File]::WriteAllText(
+    $outFile,
+    ($out | ConvertTo-Json -Depth 5),
+    (New-Object System.Text.UTF8Encoding $false)
+  )
 
   Write-Host ''
   Write-Host "Wrote $($out.Count) entity set name(s) to $outFile" -ForegroundColor Green

@@ -112,9 +112,15 @@ function Get-DataverseToken {
       # "authorization_pending" is the normal answer until you finish signing
       # in. "slow_down" means back off. Anything else is a real failure and
       # waiting longer will not fix it.
+      # Bound before the switch: `switch` sets $_ to the value being tested, so
+      # inside a branch $_ is the error CODE, not the error record. Reading
+      # $_.Exception.Message there fails on a string, and it fails at exactly
+      # the moment sign-in has gone wrong and the message matters most.
+      $err = $_
+
       $detail = $null
-      if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
-        try { $detail = $_.ErrorDetails.Message | ConvertFrom-Json } catch { }
+      if ($err.ErrorDetails -and $err.ErrorDetails.Message) {
+        try { $detail = $err.ErrorDetails.Message | ConvertFrom-Json } catch { }
       }
       $code = if ($detail) { $detail.error } else { 'unknown' }
 
@@ -122,7 +128,7 @@ function Get-DataverseToken {
         'authorization_pending' { continue }
         'slow_down'             { $interval += 5; continue }
         default {
-          $description = if ($detail) { $detail.error_description } else { $_.Exception.Message }
+          $description = if ($detail) { $detail.error_description } else { $err.Exception.Message }
           throw "Sign-in failed ($code): $description"
         }
       }
@@ -189,8 +195,33 @@ function Invoke-Dv {
         -Body ([Text.Encoding]::UTF8.GetBytes($json)) -ContentType 'application/json; charset=utf-8'
     }
     catch {
+      <#
+        Bind the error record to a name straight away.
+
+        `$_` is REBOUND inside any nested catch, so a `catch` that inspects
+        `$_.ErrorDetails` while handling a failure of its own is looking at the
+        wrong error entirely. That is not theoretical -- it is what turned a
+        refused connection into "The property 'Message' cannot be found on this
+        object", because parsing "Connection refused" as JSON failed and the
+        handler for THAT then read properties off the JSON error.
+      #>
+      $err = $_
+
+      <#
+        Read Response through PSObject.Properties, not by naming it.
+
+        `Set-StrictMode -Version Latest` makes naming a property that does not
+        exist a TERMINATING error, and a connection-level failure -- DNS,
+        refused connection, a dropped VPN -- throws an exception type with no
+        Response at all. Naming it directly turned every one of those into
+        "The property 'Response' cannot be found on this object", which says
+        nothing about the network and sends you looking in the wrong place.
+      #>
       $status = 0
-      if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+      $responseProperty = $err.Exception.PSObject.Properties['Response']
+      if ($responseProperty -and $responseProperty.Value) {
+        $status = [int]$responseProperty.Value.StatusCode
+      }
 
       if ($status -eq 404 -and $AllowNotFound) { return $null }
 
@@ -207,11 +238,12 @@ function Invoke-Dv {
           backoff rather than letting a header read kill the whole run.
         #>
         $retryAfter = $null
-        try   { $retryAfter = $_.Exception.Response.Headers['Retry-After'] }
+        $headers = $responseProperty.Value.Headers
+        try   { $retryAfter = $headers['Retry-After'] }
         catch {
           try {
             $values = $null
-            if ($_.Exception.Response.Headers.TryGetValues('Retry-After', [ref]$values)) {
+            if ($headers.TryGetValues('Retry-After', [ref]$values)) {
               $retryAfter = @($values)[0]
             }
           } catch { }
@@ -227,10 +259,16 @@ function Invoke-Dv {
 
       # Surface Dataverse's own message. Its 400s say precisely what is wrong,
       # and swallowing that in favour of "Bad Request" helps nobody.
-      $message = $_.Exception.Message
-      if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
-        try { $message = ($_.ErrorDetails.Message | ConvertFrom-Json).error.message }
-        catch { $message = $_.ErrorDetails.Message }
+      $message = $err.Exception.Message
+      $detail = if ($err.ErrorDetails) { $err.ErrorDetails.Message } else { $null }
+      if ($detail) {
+        # Dataverse answers with {"error":{"message":"..."}}. Anything else --
+        # a connection error, an HTML sign-in page -- is used as-is.
+        $message = $detail
+        try {
+          $parsed = $detail | ConvertFrom-Json
+          if ($parsed.PSObject.Properties['error']) { $message = $parsed.error.message }
+        } catch { }
       }
       throw "$Method $Path -> $status : $message"
     }

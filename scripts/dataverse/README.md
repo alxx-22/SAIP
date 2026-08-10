@@ -15,6 +15,24 @@ node scripts/dataverse/seed.mjs                      # ~206 records
 
 Both scripts are **safe to re-run** and **never delete anything**.
 
+**On Windows without Node**, use the PowerShell equivalents in `powershell/` —
+they need nothing installed and sign in with a device code. `INSTRUCTIONS.md` is
+the step-by-step version, and the one to hand to someone doing this for the
+first time.
+
+The PowerShell set also covers the two things Node does not, because they are
+Power Pages configuration rather than table creation:
+
+| | |
+| --- | --- |
+| `Create-SiteSettings.ps1` | The 33 `Webapi/...` site settings, without which every table 404s |
+| `Create-TablePermissions.ps1` | The 22 table permissions, attached to a web role, without which every table 403s |
+
+Both detect whether the site uses the standard (`adx_`) or enhanced (`mspp_`)
+data model and read entity set names, the `Global` scope value and the web-role
+relationship from metadata rather than hard-coding any of them — the wrong guess
+there writes rows that look right and do nothing.
+
 ---
 
 ## Why this exists, and what is temporary

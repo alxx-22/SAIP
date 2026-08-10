@@ -1,0 +1,114 @@
+[
+    {
+        "LogicalName":  "saip_account",
+        "EntitySetName":  "saip_accounts",
+        "SchemaName":  "saip_Account",
+        "PrimaryIdAttribute":  "saip_accountid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_capability",
+        "EntitySetName":  "saip_capabilities",
+        "SchemaName":  "saip_Capability",
+        "PrimaryIdAttribute":  "saip_capabilityid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_incentive",
+        "EntitySetName":  "saip_incentives",
+        "SchemaName":  "saip_Incentive",
+        "PrimaryIdAttribute":  "saip_incentiveid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_incentivedocument",
+        "EntitySetName":  "saip_incentivedocuments",
+        "SchemaName":  "saip_IncentiveDocument",
+        "PrimaryIdAttribute":  "saip_incentivedocumentid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_meeting",
+        "EntitySetName":  "saip_meetings",
+        "SchemaName":  "saip_Meeting",
+        "PrimaryIdAttribute":  "saip_meetingid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_monitoringanswer",
+        "EntitySetName":  "saip_monitoringanswers",
+        "SchemaName":  "saip_MonitoringAnswer",
+        "PrimaryIdAttribute":  "saip_monitoringanswerid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_opportunity",
+        "EntitySetName":  "saip_opportunities",
+        "SchemaName":  "saip_Opportunity",
+        "PrimaryIdAttribute":  "saip_opportunityid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_opportunityline",
+        "EntitySetName":  "saip_opportunitylines",
+        "SchemaName":  "saip_OpportunityLine",
+        "PrimaryIdAttribute":  "saip_opportunitylineid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_option",
+        "EntitySetName":  "saip_options",
+        "SchemaName":  "saip_Option",
+        "PrimaryIdAttribute":  "saip_optionid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_optionset",
+        "EntitySetName":  "saip_optionsets",
+        "SchemaName":  "saip_OptionSet",
+        "PrimaryIdAttribute":  "saip_optionsetid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_question",
+        "EntitySetName":  "saip_questions",
+        "SchemaName":  "saip_Question",
+        "PrimaryIdAttribute":  "saip_questionid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_questionsection",
+        "EntitySetName":  "saip_questionsections",
+        "SchemaName":  "saip_QuestionSection",
+        "PrimaryIdAttribute":  "saip_questionsectionid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_role",
+        "EntitySetName":  "saip_roles",
+        "SchemaName":  "saip_Role",
+        "PrimaryIdAttribute":  "saip_roleid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_score",
+        "EntitySetName":  "saip_scores",
+        "SchemaName":  "saip_Score",
+        "PrimaryIdAttribute":  "saip_scoreid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_servicecontract",
+        "EntitySetName":  "saip_servicecontracts",
+        "SchemaName":  "saip_ServiceContract",
+        "PrimaryIdAttribute":  "saip_servicecontractid",
+        "PrimaryNameAttribute":  "saip_name"
+    },
+    {
+        "LogicalName":  "saip_user",
+        "EntitySetName":  "saip_users",
+        "SchemaName":  "saip_User",
+        "PrimaryIdAttribute":  "saip_userid",
+        "PrimaryNameAttribute":  "saip_name"
+    }
+]
